@@ -1,5 +1,6 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "./Icon";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
 import { useShop } from "../context/ShopContext";
@@ -49,7 +50,7 @@ function Shell({ children }) {
       <div className="promo-bar">{t("promoBar")}</div>
       <header className="site-header">
         <Link to="/" className="brand-mark">
-          <span className="brand-badge">NR</span>
+          <img src="/logo.png" alt="Nature Republic" className="brand-logo" />
           <span className="brand-copy">
             <strong>Nature Republic</strong>
             <small>{t("beautyEssentials")}</small>
@@ -57,9 +58,9 @@ function Shell({ children }) {
         </Link>
 
         <nav className="main-nav">
-          <NavLink to="/">{t("home")}</NavLink>
-          <NavLink to="/products">{t("allProducts")}</NavLink>
-          <NavLink to="/best-sellers">{t("bestSellers")}</NavLink>
+          <NavLink to="/"><Icon name="home" className="nav-icon" />{t("home")}</NavLink>
+          <NavLink to="/products"><Icon name="grid" className="nav-icon" />{t("allProducts")}</NavLink>
+          <NavLink to="/best-sellers"><Icon name="star" className="nav-icon" />{t("bestSellers")}</NavLink>
         </nav>
 
         <div className="header-actions">
@@ -74,7 +75,7 @@ function Shell({ children }) {
               onClick={() => setLanguageMenuOpen((current) => !current)}
               aria-label={t("openLanguageMenu")}
             >
-              <span aria-hidden="true">O</span>
+              <Icon name="globe" className="ui-icon" />
             </button>
             {languageMenuOpen ? (
               <div className="account-dropdown">
@@ -88,9 +89,10 @@ function Shell({ children }) {
             ) : null}
           </div>
 
-          {!isAuthenticated ? <Link className="ghost-button" to="/login">{t("login")}</Link> : null}
+          {!isAuthenticated ? <Link className="ghost-button ghost-button--with-icon" to="/login"><Icon name="user" className="button-icon" />{t("login")}</Link> : null}
 
-          <Link className="solid-button" to="/cart">
+          <Link className="solid-button solid-button--with-icon" to="/cart">
+            <Icon name="cart" className="button-icon" />
             {t("cart")} {cartCount ? `(${cartCount})` : ""}
           </Link>
 
@@ -102,14 +104,14 @@ function Shell({ children }) {
                 onClick={() => setMenuOpen((current) => !current)}
                 aria-label={t("openAccountMenu")}
               >
-                <span aria-hidden="true">=</span>
+                <Icon name="menu" className="ui-icon" />
               </button>
               {menuOpen ? (
                 <div className="account-dropdown">
-                  <Link to="/profile" onClick={() => setMenuOpen(false)}>{t("profile")}</Link>
-                  <Link to="/wishlist" onClick={() => setMenuOpen(false)}>{t("wishlist")}</Link>
-                  <Link to="/orders" onClick={() => setMenuOpen(false)}>{t("orders")}</Link>
-                  <button type="button" onClick={() => { setMenuOpen(false); setLogoutConfirmOpen(true); }}>{t("logout")}</button>
+                  <Link to="/profile" onClick={() => setMenuOpen(false)}><Icon name="user" className="dropdown-icon" />{t("profile")}</Link>
+                  <Link to="/wishlist" onClick={() => setMenuOpen(false)}><Icon name="heart" className="dropdown-icon" />{t("wishlist")}</Link>
+                  <Link to="/orders" onClick={() => setMenuOpen(false)}><Icon name="package" className="dropdown-icon" />{t("orders")}</Link>
+                  <button type="button" onClick={() => { setMenuOpen(false); setLogoutConfirmOpen(true); }}><Icon name="logout" className="dropdown-icon" />{t("logout")}</button>
                 </div>
               ) : null}
             </div>

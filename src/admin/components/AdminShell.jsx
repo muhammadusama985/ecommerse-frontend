@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "../../components/Icon";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -37,13 +38,25 @@ function AdminShell({ children }) {
   };
 
   const currentTitle = titleMap[location.pathname] || t("dashboard");
+  const navItems = [
+    { to: "/admin", label: t("dashboard"), icon: "chart", end: true },
+    { to: "/admin/users", label: t("users"), icon: "user" },
+    { to: "/admin/products", label: t("products"), icon: "grid" },
+    { to: "/admin/orders", label: t("orders"), icon: "package" },
+    { to: "/admin/revenue", label: t("revenue"), icon: "chart" },
+    { to: "/admin/categories", label: t("categories"), icon: "tag" },
+    { to: "/admin/coupons", label: t("coupons"), icon: "tag" },
+    { to: "/admin/blog", label: t("blog"), icon: "fileText" },
+    { to: "/admin/banners", label: t("banners"), icon: "image" },
+    { to: "/admin/reviews", label: t("reviews"), icon: "message" },
+  ];
 
   return (
     <div className="admin-shell">
       <header className="admin-navbar">
         <div className="admin-navbar__inner">
           <div className="admin-brand">
-            <span className="admin-badge">NR</span>
+            <img src="/logo.png" alt="Nature Republic" className="admin-brand__logo" />
             <div className="admin-brand__copy">
               <strong>Nature Republic</strong>
               <small>{t("adminDashboard")}</small>
@@ -63,7 +76,7 @@ function AdminShell({ children }) {
                 onClick={() => setLanguageMenuOpen((current) => !current)}
                 aria-label={t("openLanguageMenu")}
               >
-                <span aria-hidden="true">O</span>
+                <Icon name="globe" className="admin-ui-icon" />
               </button>
               {languageMenuOpen ? (
                 <div className="admin-account-dropdown">
@@ -79,7 +92,7 @@ function AdminShell({ children }) {
 
             <button
               type="button"
-              className="admin-button admin-button--ghost"
+              className="admin-button admin-button--ghost admin-button--with-icon"
               onClick={async () => {
                 const accepted = await confirm({
                   title: t("logout"),
@@ -93,6 +106,7 @@ function AdminShell({ children }) {
                 }
               }}
             >
+              <Icon name="logout" className="admin-button__icon" />
               {t("logout")}
             </button>
           </div>
@@ -102,16 +116,12 @@ function AdminShell({ children }) {
       <div className="admin-layout">
         <aside className="admin-sidebar">
           <nav className="admin-nav">
-            <NavLink to="/admin" end>{t("dashboard")}</NavLink>
-            <NavLink to="/admin/users">{t("users")}</NavLink>
-            <NavLink to="/admin/products">{t("products")}</NavLink>
-            <NavLink to="/admin/orders">{t("orders")}</NavLink>
-            <NavLink to="/admin/revenue">{t("revenue")}</NavLink>
-            <NavLink to="/admin/categories">{t("categories")}</NavLink>
-            <NavLink to="/admin/coupons">{t("coupons")}</NavLink>
-            <NavLink to="/admin/blog">{t("blog")}</NavLink>
-            <NavLink to="/admin/banners">{t("banners")}</NavLink>
-            <NavLink to="/admin/reviews">{t("reviews")}</NavLink>
+            {navItems.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.end}>
+                <Icon name={item.icon} className="admin-nav__icon" />
+                {item.label}
+              </NavLink>
+            ))}
           </nav>
         </aside>
 

@@ -27,10 +27,7 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background:
-    radial-gradient(circle at top left, rgba(255, 239, 227, 0.8), transparent 28%),
-    radial-gradient(circle at top right, rgba(255, 223, 237, 0.55), transparent 30%),
-    linear-gradient(180deg, #fffdf9 0%, #fff8f2 100%);
+  background: url("/bg.jpeg") center top / cover fixed no-repeat;
   color: var(--text);
   font-family: "Manrope", sans-serif;
 }
@@ -101,6 +98,18 @@ input {
   gap: 14px;
 }
 
+.brand-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid rgba(236, 75, 143, 0.16);
+  box-shadow: 0 10px 24px rgba(98, 67, 45, 0.1);
+  padding: 6px;
+}
+
 .brand-badge {
   width: 46px;
   height: 46px;
@@ -133,6 +142,35 @@ input {
   color: #5f4a43;
   font-weight: 700;
   font-size: 0.96rem;
+}
+
+.main-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-icon,
+.ui-icon,
+.button-icon,
+.dropdown-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.button-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.solid-button--with-icon,
+.ghost-button--with-icon,
+.account-dropdown a,
+.account-dropdown button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 html[dir="rtl"] .brand-mark,
@@ -214,7 +252,7 @@ main {
 .listing-content,
 .split-showcase,
 .site-footer {
-  background: var(--surface);
+  background-color: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.92);
   box-shadow: var(--shadow);
   backdrop-filter: blur(20px);
@@ -317,6 +355,24 @@ main {
 .content-section {
   display: grid;
   gap: 24px;
+}
+
+.content-section--floral {
+  gap: 18px;
+}
+
+.content-section--floral .section-header h2,
+.content-section--floral .section-header p {
+  color: #111111;
+}
+
+.content-section--floral .home-carousel {
+  padding: 22px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
 }
 
 .section-header {
@@ -673,7 +729,7 @@ main {
 .detail-tabs,
 .cart-panel,
 .empty-panel {
-  background: var(--surface);
+  background-color: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.92);
   box-shadow: var(--shadow);
   backdrop-filter: blur(20px);
@@ -730,6 +786,7 @@ main {
   margin: 0 auto;
   display: block;
   padding: 28px;
+  background-color: rgba(255, 255, 255, 0.96);
 }
 
 .auth-form--login {
@@ -1203,7 +1260,7 @@ main {
 .blog-card,
 .content-page {
   padding: 20px;
-  background: rgba(255, 255, 255, 0.9);
+  background-color: rgba(255, 255, 255, 0.9);
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow);
@@ -1290,6 +1347,14 @@ main {
   .cart-panel,
   .site-footer {
     padding: 22px;
+  }
+
+  .content-section--floral {
+    gap: 16px;
+  }
+
+  .content-section--floral .home-carousel {
+    padding: 18px;
   }
 
   .category-grid,
@@ -1404,6 +1469,11 @@ body::before {
   background: transparent;
   color: var(--text);
   cursor: pointer;
+}
+
+html[dir="rtl"] .account-dropdown a,
+html[dir="rtl"] .account-dropdown button {
+  text-align: right;
 }
 
 .hero-banner {
@@ -1641,7 +1711,7 @@ html[dir="rtl"] .cart-list__actions > * + * {
 
 .profile-panel {
   padding: 18px;
-  background: var(--surface);
+  background-color: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.92);
   box-shadow: var(--shadow);
   backdrop-filter: blur(20px);
@@ -1818,7 +1888,7 @@ html[dir="rtl"] .cart-list__actions > * + * {
   display: grid;
   gap: 22px;
   padding: 24px;
-  background: var(--surface);
+  background-color: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.92);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow);

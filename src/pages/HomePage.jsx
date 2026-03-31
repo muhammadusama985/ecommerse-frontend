@@ -128,7 +128,7 @@ function HomePage() {
         ) : null}
       </section>
 
-      <section id="categories" className="content-section">
+      <section id="categories" className="content-section content-section--floral">
         <SectionHeader
           title={t("shopByCategory")}
           description={t("shopByCategoryCopy")}
@@ -146,7 +146,7 @@ function HomePage() {
         />
       </section>
 
-      <section id="featured" className="content-section">
+      <section id="featured" className="content-section content-section--floral">
         <SectionHeader
           title={t("featuredProducts")}
           description={t("featuredProductsCopy")}
@@ -164,7 +164,7 @@ function HomePage() {
         />
       </section>
 
-      <section className="content-section">
+      <section className="content-section content-section--floral">
         <SectionHeader
           title={t("topSellingProducts")}
           description={t("topSellingProductsCopy")}

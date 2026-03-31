@@ -86,11 +86,13 @@ textarea {
 .admin-sidebar {
   min-width: 0;
   padding: 18px 16px;
-  background: #1f1614;
-  color: #f9f4f1;
+  background: linear-gradient(180deg, rgba(255, 248, 251, 0.96) 0%, rgba(255, 238, 245, 0.92) 100%);
+  color: var(--text);
   display: flex;
   flex-direction: column;
   gap: 18px;
+  border-right: 1px solid rgba(233, 223, 212, 0.92);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.55);
 }
 
 .admin-brand {
@@ -98,6 +100,18 @@ textarea {
   align-items: center;
   gap: 12px;
   color: var(--text);
+}
+
+.admin-brand__logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  object-position: center;
+  padding: 5px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid rgba(235, 77, 143, 0.16);
+  box-shadow: 0 10px 22px rgba(83, 46, 68, 0.08);
 }
 
 .admin-brand__copy {
@@ -128,7 +142,7 @@ textarea {
 .admin-sidebar .admin-brand,
 .admin-sidebar .admin-brand small,
 .admin-sidebar__footer p {
-  color: rgba(249, 244, 241, 0.72);
+  color: var(--muted);
 }
 
 .admin-navbar__actions {
@@ -158,17 +172,28 @@ textarea {
 }
 
 .admin-nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 10px 12px;
   border-radius: 12px;
-  color: rgba(249, 244, 241, 0.8);
+  color: #5d4741;
   transition: background 0.2s ease, color 0.2s ease;
   font-size: 0.92rem;
 }
 
+.admin-nav__icon,
+.admin-ui-icon,
+.admin-button__icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
 .admin-nav a.active,
 .admin-nav a:hover {
-  color: white;
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--accent-dark);
+  background: rgba(235, 77, 143, 0.1);
 }
 
 .admin-account-menu {
@@ -350,6 +375,10 @@ textarea {
 }
 
 .admin-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border: none;
   border-radius: 12px;
   cursor: pointer;
