@@ -376,6 +376,7 @@ textarea {
 .admin-login__card {
   width: min(520px, 100%);
   padding: 32px;
+  text-align: center;
 }
 
 .admin-login__card p {
@@ -393,6 +394,22 @@ textarea {
   gap: 8px;
   color: var(--muted);
   font-weight: 700;
+}
+
+.admin-login--ltr .admin-form label,
+.admin-login--ltr .admin-form input,
+.admin-login--ltr .admin-form textarea,
+.admin-login--ltr .admin-form select {
+  text-align: left;
+  direction: ltr;
+}
+
+.admin-login--rtl .admin-form label,
+.admin-login--rtl .admin-form input,
+.admin-login--rtl .admin-form textarea,
+.admin-login--rtl .admin-form select {
+  text-align: right;
+  direction: rtl;
 }
 
 .admin-form input,

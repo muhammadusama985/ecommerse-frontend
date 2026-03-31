@@ -6,7 +6,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
 
 function LoginPage() {
-  const { t, toggleLanguage } = useLanguage();
+  const { t, toggleLanguage, isRtl } = useLanguage();
   const navigate = useNavigate();
   const { setSession } = useAdmin();
   const { notify } = useAdminNotifications();
@@ -28,7 +28,7 @@ function LoginPage() {
   };
 
   return (
-    <section className="admin-login">
+    <section className={`admin-login ${isRtl ? "admin-login--rtl" : "admin-login--ltr"}`}>
       <div className="admin-login__card">
         <span className="admin-eyebrow">{t("adminAccess")}</span>
         <h1>{t("loginToDashboard")}</h1>
