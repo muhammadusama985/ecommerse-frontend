@@ -376,7 +376,6 @@ textarea {
 .admin-login__card {
   width: min(520px, 100%);
   padding: 32px;
-  text-align: center;
 }
 
 .admin-login__card p {
@@ -396,12 +395,34 @@ textarea {
   font-weight: 700;
 }
 
+.admin-login--ltr .admin-login__card {
+  direction: ltr;
+  text-align: left;
+}
+
+.admin-login--ltr .admin-eyebrow,
+.admin-login--ltr .admin-login__card h1,
+.admin-login--ltr .admin-login__card p {
+  text-align: left;
+}
+
 .admin-login--ltr .admin-form label,
 .admin-login--ltr .admin-form input,
 .admin-login--ltr .admin-form textarea,
 .admin-login--ltr .admin-form select {
   text-align: left;
   direction: ltr;
+}
+
+.admin-login--rtl .admin-login__card {
+  direction: rtl;
+  text-align: right;
+}
+
+.admin-login--rtl .admin-eyebrow,
+.admin-login--rtl .admin-login__card h1,
+.admin-login--rtl .admin-login__card p {
+  text-align: right;
 }
 
 .admin-login--rtl .admin-form label,
