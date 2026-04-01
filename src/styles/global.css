@@ -199,6 +199,16 @@ img {
   height: 13px;
 }
 
+.header-login-button {
+  padding: 4px 8px;
+  font-size: 0.78rem;
+}
+
+.header-login-button .button-icon {
+  width: 12px;
+  height: 12px;
+}
+
 html[dir="rtl"] .brand-mark,
 html[dir="rtl"] .header-actions,
 html[dir="rtl"] .main-nav,
@@ -923,8 +933,8 @@ main {
 .auth-panel {
   display: grid;
   grid-template-columns: 0.9fr 1.1fr;
-  gap: 18px;
-  padding: 18px;
+  gap: 12px;
+  padding: 12px;
 }
 
 .auth-copy h1,
@@ -937,10 +947,10 @@ main {
 
 .auth-form {
   display: grid;
-  gap: 14px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.9);
   border-radius: var(--radius-lg);
-  padding: 14px;
+  padding: 10px;
 }
 
 .auth-form--two-col {
@@ -949,16 +959,18 @@ main {
 
 .auth-form label {
   display: grid;
-  gap: 8px;
+  gap: 5px;
   color: var(--muted);
   font-weight: 700;
+  font-size: 0.82rem;
 }
 
 .auth-form input {
-  padding: 11px 14px;
+  padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: white;
+  font-size: 0.84rem;
 }
 
 .auth-form__wide {
@@ -966,33 +978,34 @@ main {
 }
 
 .auth-panel--login {
-  width: min(560px, 100%);
+  width: min(440px, 100%);
   margin: 0 auto;
   display: block;
-  padding: 18px;
+  padding: 12px;
   background-color: rgba(255, 255, 255, 0.96);
 }
 
 .auth-form--login {
-  gap: 16px;
-  padding: 18px 16px;
+  gap: 10px;
+  padding: 12px 10px;
 }
 
 .auth-copy--centered {
   display: grid;
-  gap: 10px;
+  gap: 6px;
   text-align: center;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
 
 .auth-copy--centered h1 {
   margin: 0;
-  font-size: clamp(1.55rem, 2.7vw, 2rem);
+  font-size: clamp(1.12rem, 1.7vw, 1.42rem);
 }
 
 .auth-copy--centered p {
   margin: 0;
   color: var(--muted);
+  font-size: 0.8rem;
 }
 
 .auth-form__submit {
