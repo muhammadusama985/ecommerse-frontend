@@ -102,6 +102,10 @@ function HomePage() {
 
   const heroBanners = data.banners.filter((banner) => banner.placement === "hero");
   const heroBanner = heroBanners[activeBannerIndex] || heroBanners[0] || null;
+  const heroEyebrow = heroBanner?.subtitle || heroBanner?.label || t("beautyStorefront");
+  const heroTitle = heroBanner?.title || data.hero?.title || t("homeHeroTitle");
+  const heroDescription =
+    heroBanner?.description || heroBanner?.shortDescription || data.hero?.description || t("homeHeroCopy");
 
   return (
     <div className="home-screen">
@@ -110,9 +114,9 @@ function HomePage() {
           <div className="hero-banner">
             <div className="hero-banner__panel">
               <div className="hero-banner__copy">
-                <span className="section-eyebrow">{t("beautyStorefront")}</span>
-                <h1>{t("homeHeroTitle")}</h1>
-                <p>{t("homeHeroCopy")}</p>
+                <span className="section-eyebrow">{heroEyebrow}</span>
+                <h1>{heroTitle}</h1>
+                <p>{heroDescription}</p>
                 <Link to="/products" className="solid-button solid-button--large">
                   {t("shopNow")}
                 </Link>

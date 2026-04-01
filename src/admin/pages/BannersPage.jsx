@@ -8,6 +8,7 @@ import { useAdminNotifications } from "../context/AdminNotificationContext";
 const initialForm = {
   title: "",
   subtitle: "",
+  description: "",
   ctaLabel: "",
   ctaHref: "",
   placement: "hero",
@@ -118,6 +119,7 @@ function BannersPage() {
               <div className="admin-row-copy">
                 <strong>{banner.title}</strong>
                 <p>{banner.subtitle || t("noSubtitleAddedYet")}</p>
+                <p>{banner.description || t("noDescriptionAddedYet")}</p>
               </div>
               <span>{banner.placement}</span>
               <span>{t("orderCountLabel", { count: banner.sortOrder || 0 })}</span>
@@ -130,6 +132,7 @@ function BannersPage() {
                     setForm({
                       title: banner.title || "",
                       subtitle: banner.subtitle || "",
+                      description: banner.description || "",
                       ctaLabel: banner.ctaLabel || "",
                       ctaHref: banner.ctaHref || "",
                       placement: banner.placement || "hero",
@@ -204,6 +207,11 @@ function BannersPage() {
               <label>
                 {t("subtitle")}
                 <input value={form.subtitle} onChange={(event) => setForm({ ...form, subtitle: event.target.value })} />
+              </label>
+
+              <label>
+                {t("fullDescription")}
+                <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={4} />
               </label>
 
               <div className="admin-grid admin-grid--two">
