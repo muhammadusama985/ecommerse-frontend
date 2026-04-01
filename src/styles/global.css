@@ -1498,6 +1498,85 @@ main {
   .hero-copy h1 {
     font-size: 2.6rem;
   }
+
+  .home-band--categories .section-header {
+    padding-top: 18px;
+    margin-bottom: 10px;
+  }
+
+  .home-band--categories .section-header h2 {
+    line-height: 1.18;
+  }
+
+  .home-band--categories .section-header p {
+    max-width: 30ch;
+    margin: 0 auto;
+  }
+
+  .product-detail-band--hero {
+    padding: 12px 0 18px;
+  }
+
+  .detail-panel--refined {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 18px;
+  }
+
+  .detail-media {
+    order: 1;
+  }
+
+  .detail-copy {
+    order: 2;
+    gap: 12px;
+  }
+
+  .detail-image,
+  .detail-image--placeholder {
+    min-height: 260px;
+    max-height: 320px;
+  }
+
+  .detail-copy > .crumbs {
+    order: 1;
+  }
+
+  .detail-copy > .product-category {
+    order: 2;
+  }
+
+  .detail-copy > h1 {
+    order: 3;
+  }
+
+  .detail-copy > .product-meta--detail {
+    order: 4;
+  }
+
+  .detail-copy > p:not(.stock-note):not(.feedback-note) {
+    order: 5;
+  }
+
+  .detail-copy > .detail-price-stack {
+    order: 6;
+  }
+
+  .detail-copy > .stock-note {
+    order: 7;
+  }
+
+  .detail-copy > .detail-actions {
+    order: 8;
+  }
+
+  .detail-copy > .feedback-note {
+    order: 9;
+  }
+
+  .detail-copy > .trust-grid {
+    order: 10;
+  }
 }
 
 .solid-button,

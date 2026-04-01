@@ -7,7 +7,6 @@ import { NotificationProvider } from "./context/NotificationContext.jsx";
 import { ShopProvider } from "./context/ShopContext.jsx";
 import "./styles/global.css";
 
-// ✅ ADD THIS LINE - Forces 80% zoom on ALL pages
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
