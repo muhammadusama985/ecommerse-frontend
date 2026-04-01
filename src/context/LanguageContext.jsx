@@ -394,10 +394,15 @@ const fallbackArabicTranslations = {
   youMayAlsoLike: "قد يعجبك أيضاً",
 };
 
+fallbackArabicTranslations.beautyStorefront = "واجهة متجر الجمال";
+fallbackArabicTranslations.homeHeroTitle = "اكتشفي جمالك الطبيعي";
+fallbackArabicTranslations.homeHeroCopy =
+  "منتجات تجميل فاخرة تعزز إشراقتك الطبيعية. من أساسيات العناية بالبشرة إلى مستحضرات المكياج الراقية، ستجدين كل ما تحتاجينه لتشعري بالثقة والجمال مع نيتشر ريبابليك.";
+
 const STORAGE_KEY = "nr-language";
-const CACHE_PREFIX = "nr-language-cache-v4-";
+const CACHE_PREFIX = "nr-language-cache-v5-";
 const LANGUAGE_VERSION_KEY = "nr-language-version";
-const LANGUAGE_VERSION = "4";
+const LANGUAGE_VERSION = "5";
 const DEFAULT_LANGUAGE = "ar";
 const LanguageContext = createContext(null);
 
