@@ -1835,7 +1835,7 @@ html[dir="rtl"] .account-dropdown {
 }
 
 .hero-banner {
-  min-height: 430px;
+  min-height: 320px;
   padding: 0;
   position: relative;
   border-radius: 0;
@@ -1874,7 +1874,7 @@ html[dir="rtl"] .account-dropdown {
 .hero-banner__panel {
   min-height: 100%;
   margin: 0;
-  padding: 36px 48px;
+  padding: 22px 18px;
   border-radius: 0;
   background: transparent;
   display: grid;
@@ -1904,8 +1904,8 @@ html[dir="rtl"] .account-dropdown {
 .hero-banner__image {
   position: relative;
   width: 100%;
-  min-height: 260px;
-  max-height: 320px;
+  min-height: 220px;
+  max-height: 280px;
   display: block;
   object-fit: cover;
   object-position: center;
