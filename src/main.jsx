@@ -8,7 +8,7 @@ import { ShopProvider } from "./context/ShopContext.jsx";
 import "./styles/global.css";
 
 // ✅ ADD THIS LINE - Forces 80% zoom on ALL pages
-document.documentElement.style.zoom = "0.95";
+document.documentElement.style.zoom = "0.98";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

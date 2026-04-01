@@ -8,7 +8,7 @@ import { LoadingState } from "../components/LoadingState";
 import { ProductCard } from "../components/ProductCard";
 import { SectionHeader } from "../components/SectionHeader";
 import { useLanguage } from "../context/LanguageContext";
-import { translateCategoryCollection, translateProductCollection } from "../lib/contentTranslation";
+import { translateCategoryCollection, translateProductCollection, translateTextsCached } from "../lib/contentTranslation";
 
 function HomeCarousel({ items, renderItem, className, previousLabel, nextLabel }) {
   const railRef = useRef(null);
@@ -61,12 +61,45 @@ function HomePage() {
     getHomePageData()
       .then(async (result) => {
         if (!mounted) return;
-        const [categories, featuredProducts, bestSellingProducts] = await Promise.all([
+        const [categories, featuredProducts, bestSellingProducts, heroTextTranslations] = await Promise.all([
           translateCategoryCollection(language, result.categories || []),
           translateProductCollection(language, result.featuredProducts || []),
           translateProductCollection(language, result.bestSellingProducts || []),
+          translateTextsCached(
+            language,
+            [
+              ...(result.banners || []).flatMap((banner) => [
+                banner?.title || "",
+                banner?.subtitle || "",
+                banner?.label || "",
+                banner?.description || "",
+                banner?.shortDescription || "",
+              ]),
+              result.hero?.title || "",
+              result.hero?.description || "",
+            ],
+          ),
         ]);
-        setData({ ...result, categories, featuredProducts, bestSellingProducts });
+
+        let heroCursor = 0;
+        const banners = (result.banners || []).map((banner) => ({
+          ...banner,
+          title: heroTextTranslations[heroCursor++] || banner?.title,
+          subtitle: heroTextTranslations[heroCursor++] || banner?.subtitle,
+          label: heroTextTranslations[heroCursor++] || banner?.label,
+          description: heroTextTranslations[heroCursor++] || banner?.description,
+          shortDescription: heroTextTranslations[heroCursor++] || banner?.shortDescription,
+        }));
+
+        const hero = result.hero
+          ? {
+              ...result.hero,
+              title: heroTextTranslations[heroCursor++] || result.hero.title,
+              description: heroTextTranslations[heroCursor++] || result.hero.description,
+            }
+          : result.hero;
+
+        setData({ ...result, banners, hero, categories, featuredProducts, bestSellingProducts });
         setStatus("success");
       })
       .catch(() => {

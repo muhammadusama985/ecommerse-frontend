@@ -400,9 +400,9 @@ fallbackArabicTranslations.homeHeroCopy =
   "منتجات تجميل فاخرة تعزز إشراقتك الطبيعية. من أساسيات العناية بالبشرة إلى مستحضرات المكياج الراقية، ستجدين كل ما تحتاجينه لتشعري بالثقة والجمال مع نيتشر ريبابليك.";
 
 const STORAGE_KEY = "nr-language";
-const CACHE_PREFIX = "nr-language-cache-v5-";
+const CACHE_PREFIX = "nr-language-cache-v6-";
 const LANGUAGE_VERSION_KEY = "nr-language-version";
-const LANGUAGE_VERSION = "5";
+const LANGUAGE_VERSION = "6";
 const DEFAULT_LANGUAGE = "ar";
 const LanguageContext = createContext(null);
 
@@ -410,8 +410,9 @@ function mapTranslations(keys, values) {
   return keys.reduce((accumulator, key, index) => {
     const translatedValue = values[index] || baseTranslations[key];
     accumulator[key] =
-      translatedValue === baseTranslations[key] && fallbackArabicTranslations[key]
-        ? fallbackArabicTranslations[key]
+      translatedValue === baseTranslations[key] &&
+      (fallbackArabicTranslations[key] || (key === "shopNow" ? "تسوقي الآن" : ""))
+        ? fallbackArabicTranslations[key] || (key === "shopNow" ? "تسوقي الآن" : translatedValue)
         : translatedValue;
     return accumulator;
   }, {});
@@ -507,10 +508,17 @@ function LanguageProvider({ children }) {
       isLoadingTranslations,
       setLanguage,
       t(key, variables = {}) {
+        const runtimeArabicFallbacks = {
+          shopNow: "تسوقي الآن",
+        };
         const template =
           language === "en"
             ? baseTranslations[key] || key
-            : dynamicTranslations[key] || fallbackArabicTranslations[key] || baseTranslations[key] || key;
+            : dynamicTranslations[key] ||
+              fallbackArabicTranslations[key] ||
+              runtimeArabicFallbacks[key] ||
+              baseTranslations[key] ||
+              key;
 
         return Object.entries(variables).reduce(
           (message, [name, value]) => message.replaceAll(`{${name}}`, String(value)),

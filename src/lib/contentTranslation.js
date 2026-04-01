@@ -201,4 +201,5 @@ export {
   translateProductCollection,
   translateProductDetailPayload,
   translateSingleBlogPost,
+  translateTextsCached,
 };

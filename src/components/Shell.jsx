@@ -34,6 +34,7 @@ function Shell({ children }) {
 
   const handleSearch = (event) => {
     event.preventDefault();
+    setMenuOpen(false);
     navigate(`/products?search=${encodeURIComponent(search)}`);
   };
 
@@ -47,7 +48,6 @@ function Shell({ children }) {
 
   return (
     <div className="site-shell">
-      <div className="promo-bar">{t("promoBar")}</div>
       <header className="site-header">
         <Link to="/" className="brand-mark">
           <img src="/logo.png" alt="Nature Republic" className="brand-logo" />
@@ -64,11 +64,11 @@ function Shell({ children }) {
         </nav>
 
         <div className="header-actions">
-          <form className="header-search" onSubmit={handleSearch}>
+          <form className="header-search header-search--desktop" onSubmit={handleSearch}>
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("searchProducts")} />
           </form>
 
-          <div className="account-menu" ref={languageMenuRef}>
+          <div className="account-menu account-menu--language" ref={languageMenuRef}>
             <button
               className="icon-button"
               type="button"
@@ -89,33 +89,51 @@ function Shell({ children }) {
             ) : null}
           </div>
 
-          {!isAuthenticated ? <Link className="ghost-button ghost-button--with-icon" to="/login"><Icon name="user" className="button-icon" />{t("login")}</Link> : null}
+          {!isAuthenticated ? <Link className="ghost-button ghost-button--with-icon header-login-button" to="/login"><Icon name="user" className="button-icon" />{t("login")}</Link> : null}
 
-          <Link className="solid-button solid-button--with-icon" to="/cart">
+          <Link className="solid-button solid-button--with-icon header-cart-button" to="/cart">
             <Icon name="cart" className="button-icon" />
             {t("cart")} {cartCount ? `(${cartCount})` : ""}
           </Link>
 
-          {isAuthenticated ? (
-            <div className="account-menu" ref={menuRef}>
-              <button
-                className="icon-button"
-                type="button"
-                onClick={() => setMenuOpen((current) => !current)}
-                aria-label={t("openAccountMenu")}
-              >
-                <Icon name="menu" className="ui-icon" />
-              </button>
-              {menuOpen ? (
-                <div className="account-dropdown">
-                  <Link to="/profile" onClick={() => setMenuOpen(false)}><Icon name="user" className="dropdown-icon" />{t("profile")}</Link>
-                  <Link to="/wishlist" onClick={() => setMenuOpen(false)}><Icon name="heart" className="dropdown-icon" />{t("wishlist")}</Link>
-                  <Link to="/orders" onClick={() => setMenuOpen(false)}><Icon name="package" className="dropdown-icon" />{t("orders")}</Link>
-                  <button type="button" onClick={() => { setMenuOpen(false); setLogoutConfirmOpen(true); }}><Icon name="logout" className="dropdown-icon" />{t("logout")}</button>
+          <div className={`account-menu account-menu--hamburger${isAuthenticated ? " account-menu--desktop" : ""}`} ref={menuRef}>
+            <button
+              className="icon-button"
+              type="button"
+              onClick={() => setMenuOpen((current) => !current)}
+              aria-label={t("openAccountMenu")}
+            >
+              <Icon name="menu" className="ui-icon" />
+            </button>
+            {menuOpen ? (
+              <div className="account-dropdown account-dropdown--menu">
+                <form className="header-search header-search--menu" onSubmit={handleSearch}>
+                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("searchProducts")} />
+                </form>
+                <div className="account-dropdown__section account-dropdown__section--mobile-language">
+                  <button type="button" onClick={() => { setLanguage("en"); setMenuOpen(false); }}>
+                    {getLanguageLabel("en")}
+                  </button>
+                  <button type="button" onClick={() => { setLanguage("ar"); setMenuOpen(false); }}>
+                    {getLanguageLabel("ar")}
+                  </button>
                 </div>
-              ) : null}
-            </div>
-          ) : null}
+                {!isAuthenticated ? (
+                  <Link to="/login" onClick={() => setMenuOpen(false)}>
+                    <Icon name="user" className="dropdown-icon" />
+                    {t("login")}
+                  </Link>
+                ) : (
+                  <>
+                    <Link to="/profile" onClick={() => setMenuOpen(false)}><Icon name="user" className="dropdown-icon" />{t("profile")}</Link>
+                    <Link to="/wishlist" onClick={() => setMenuOpen(false)}><Icon name="heart" className="dropdown-icon" />{t("wishlist")}</Link>
+                    <Link to="/orders" onClick={() => setMenuOpen(false)}><Icon name="package" className="dropdown-icon" />{t("orders")}</Link>
+                    <button type="button" onClick={() => { setMenuOpen(false); setLogoutConfirmOpen(true); }}><Icon name="logout" className="dropdown-icon" />{t("logout")}</button>
+                  </>
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 

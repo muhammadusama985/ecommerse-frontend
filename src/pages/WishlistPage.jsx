@@ -34,7 +34,7 @@ function WishlistPage() {
 
   return (
     <section className="page-stack">
-      <div className="content-page content-page--hero">
+      <div className="content-page content-page--hero wishlist-page-hero">
         <span className="section-eyebrow">{t("wishlist")}</span>
         <h1>{t("savedBeautyPicks")}</h1>
         <p>{t("productsBookmarked")}</p>
