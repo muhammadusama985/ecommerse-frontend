@@ -17,6 +17,8 @@ const baseTranslations = {
   cart: "Cart",
   searchProducts: "Search products...",
   beautyStorefront: "Beauty Storefront",
+  homeHeroTitle: "Discover Your Natural Beauty",
+  homeHeroCopy: "Premium beauty products that enhance your natural glow. From skincare essentials to luxury makeup, find everything you need to feel confident and beautiful with Nature Republic.",
   collections: "Collections",
   highlights: "Highlights",
   shopByCategory: "Shop By Category",
