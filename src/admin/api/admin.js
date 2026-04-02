@@ -52,6 +52,15 @@ async function createCategory(token, payload) {
   return response.data;
 }
 
+async function updateCategory(token, categoryId, payload) {
+  const response = await request(`/categories/${categoryId}`, {
+    method: "PATCH",
+    token,
+    body: payload,
+  });
+  return response.data;
+}
+
 async function deleteCategory(token, categoryId) {
   return request(`/categories/${categoryId}`, {
     method: "DELETE",
@@ -72,6 +81,15 @@ async function getCoupons(token) {
 async function createCoupon(token, payload) {
   const response = await request("/coupons", {
     method: "POST",
+    token,
+    body: payload,
+  });
+  return response.data;
+}
+
+async function updateCoupon(token, couponId, payload) {
+  const response = await request(`/coupons/${couponId}`, {
+    method: "PATCH",
     token,
     body: payload,
   });
@@ -298,10 +316,12 @@ export {
   updateProduct,
   getCategories,
   createCategory,
+  updateCategory,
   deleteCategory,
   uploadAdminImage,
   getCoupons,
   createCoupon,
+  updateCoupon,
   deleteCoupon,
   getBlogPosts,
   createBlogPost,

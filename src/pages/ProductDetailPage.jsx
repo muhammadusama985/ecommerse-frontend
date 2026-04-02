@@ -24,6 +24,7 @@ function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState("");
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "", title: "" });
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -52,11 +53,16 @@ function ProductDetailPage() {
       .catch(() => setRelatedProducts([]));
   }, [data?.product?._id, data?.product?.categoryId?._id, language]);
 
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [data?.product?._id]);
+
   if (status === "loading") return <LoadingState label={t("loadingProduct")} />;
   if (status === "error") return <ErrorState message={t("productLoadError")} />;
 
   const { product, reviews } = data;
-  const image = product.images?.[0];
+  const productImages = product.images?.length ? product.images : [];
+  const image = productImages[activeImageIndex] || productImages[0];
   const isWishlisted = wishlist.some((item) => item._id === product._id);
   const rating = Math.max(1, Math.round(product.averageRating || 4));
   const stockCount = Number(product.stock || 0);
@@ -133,7 +139,23 @@ function ProductDetailPage() {
           <section className="detail-panel detail-panel--refined">
             <div className="detail-media">
               {image ? (
-                <img src={mediaUrl(image)} alt={product.name} className="detail-image" />
+                <>
+                  <img src={mediaUrl(image)} alt={product.name} className="detail-image" />
+                  {productImages.length > 1 ? (
+                    <div className="detail-thumbnails">
+                      {productImages.map((item, index) => (
+                        <button
+                          key={`${item}-${index}`}
+                          type="button"
+                          className={`detail-thumbnail ${index === activeImageIndex ? "is-active" : ""}`}
+                          onClick={() => setActiveImageIndex(index)}
+                        >
+                          <img src={mediaUrl(item)} alt={`${product.name} ${index + 1}`} />
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </>
               ) : (
                 <div className="detail-image detail-image--placeholder">{product.name}</div>
               )}

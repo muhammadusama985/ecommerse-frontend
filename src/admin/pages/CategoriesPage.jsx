@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { mediaUrl } from "../api/client";
-import { createCategory, deleteCategory, getCategories, uploadAdminImage } from "../api/admin";
+import { createCategory, deleteCategory, getCategories, updateCategory, uploadAdminImage } from "../api/admin";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -17,6 +17,7 @@ function CategoriesPage() {
   const [preview, setPreview] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState("");
 
   useEffect(() => {
     getCategories(accessToken).then(setCategories).catch(() => setCategories([]));
@@ -37,6 +38,25 @@ function CategoriesPage() {
     setForm(initialForm);
     setSelectedImage(null);
     setPreview("");
+    setEditingCategoryId("");
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setShowModal(true);
+  };
+
+  const openEditModal = (category) => {
+    setEditingCategoryId(category._id);
+    setForm({
+      name: category.name || "",
+      description: category.description || "",
+      sortOrder: category.sortOrder ?? "",
+      parentId: category.parentId || "",
+    });
+    setSelectedImage(null);
+    setPreview(category.image ? mediaUrl(category.image) : "");
+    setShowModal(true);
   };
 
   const handleSubmit = async (event) => {
@@ -44,26 +64,32 @@ function CategoriesPage() {
     setIsSubmitting(true);
 
     try {
-      let image = "";
+      let image = preview && !selectedImage ? preview.replace(/^.*?(\/uploads\/.*)$/, "$1") : "";
       if (selectedImage) {
         const uploaded = await uploadAdminImage(accessToken, "categories", selectedImage);
         image = uploaded.path;
       }
 
-      const category = await createCategory(accessToken, {
+      const payload = {
         name: form.name,
         description: form.description,
         sortOrder: form.sortOrder ? Number(form.sortOrder) : 0,
-        parentId: form.parentId || undefined,
+        parentId: form.parentId || null,
         image: image || undefined,
-      });
+      };
 
-      setCategories((current) => [...current, category]);
-      notify({ type: "success", message: t("categoryCreatedSuccess") });
+      const category = editingCategoryId
+        ? await updateCategory(accessToken, editingCategoryId, payload)
+        : await createCategory(accessToken, payload);
+
+      setCategories((current) =>
+        editingCategoryId ? current.map((item) => (item._id === editingCategoryId ? category : item)) : [...current, category],
+      );
+      notify({ type: "success", message: editingCategoryId ? t("categoryUpdatedSuccess") : t("categoryCreatedSuccess") });
       resetForm();
       setShowModal(false);
     } catch (error) {
-      notify({ type: "error", message: error.message || t("couldNotCreateCategory") });
+      notify({ type: "error", message: error.message || (editingCategoryId ? t("couldNotUpdateCategory") : t("couldNotCreateCategory")) });
     } finally {
       setIsSubmitting(false);
     }
@@ -76,7 +102,7 @@ function CategoriesPage() {
           <h2>{t("categories")}</h2>
           <p>{t("categoriesPageCopy")}</p>
         </div>
-        <button type="button" className="admin-button" onClick={() => setShowModal(true)}>
+        <button type="button" className="admin-button" onClick={openCreateModal}>
           {t("addCategory")}
         </button>
       </div>
@@ -104,6 +130,9 @@ function CategoriesPage() {
               <span>{categories.find((item) => item._id === category.parentId)?.name || t("mainCategory")}</span>
               <span>{t("orderCountLabel", { count: category.sortOrder || 0 })}</span>
               <div className="admin-actions">
+                <button type="button" className="admin-button admin-button--ghost" onClick={() => openEditModal(category)}>
+                  {t("edit")}
+                </button>
                 <button
                   type="button"
                   className="admin-button admin-button--ghost admin-button--danger"
@@ -135,10 +164,10 @@ function CategoriesPage() {
           <div className="admin-modal" onClick={(event) => event.stopPropagation()}>
             <div className="admin-modal__header">
               <div>
-                <h3>{t("addCategoryTitle")}</h3>
-                <p>{t("addCategoryCopy")}</p>
+                <h3>{editingCategoryId ? t("editCategoryTitle") : t("addCategoryTitle")}</h3>
+                <p>{editingCategoryId ? t("editCategoryCopy") : t("addCategoryCopy")}</p>
               </div>
-              <button type="button" className="admin-modal__close" onClick={() => setShowModal(false)}>
+              <button type="button" className="admin-modal__close" onClick={() => { resetForm(); setShowModal(false); }}>
                 x
               </button>
             </div>
@@ -200,11 +229,11 @@ function CategoriesPage() {
               </div>
 
               <div className="admin-form__actions">
-                <button type="button" className="admin-button admin-button--ghost" onClick={() => setShowModal(false)}>
+                <button type="button" className="admin-button admin-button--ghost" onClick={() => { resetForm(); setShowModal(false); }}>
                   {t("cancel")}
                 </button>
                 <button type="submit" className="admin-button" disabled={isSubmitting}>
-                  {isSubmitting ? t("saving") : t("createCategoryCta")}
+                  {isSubmitting ? t("saving") : editingCategoryId ? t("saveChanges") : t("createCategoryCta")}
                 </button>
               </div>
             </form>

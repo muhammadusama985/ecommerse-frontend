@@ -25,8 +25,9 @@ function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState(initialForm);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [preview, setPreview] = useState("");
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+  const [previews, setPreviews] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingProductId, setEditingProductId] = useState("");
@@ -37,21 +38,47 @@ function ProductsPage() {
   }, [accessToken]);
 
   useEffect(() => {
-    if (!selectedImage) {
-      setPreview("");
+    if (!selectedImages.length) {
+      setPreviews((current) => current.filter((item) => item.persisted));
       return;
     }
 
-    const objectUrl = URL.createObjectURL(selectedImage);
-    setPreview(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [selectedImage]);
+    const nextPreviewItems = selectedImages.map((file) => ({
+      id: `${file.name}-${file.size}-${file.lastModified}`,
+      url: URL.createObjectURL(file),
+      persisted: false,
+      fileId: `${file.name}-${file.size}-${file.lastModified}`,
+    }));
+
+    setPreviews((current) => [...current.filter((item) => item.persisted), ...nextPreviewItems]);
+
+    return () => {
+      nextPreviewItems.forEach((item) => URL.revokeObjectURL(item.url));
+    };
+  }, [selectedImages]);
 
   const resetForm = () => {
     setForm(initialForm);
-    setSelectedImage(null);
-    setPreview("");
+    setSelectedImages([]);
+    setExistingImages([]);
+    setPreviews([]);
     setEditingProductId("");
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setShowModal(true);
+  };
+
+  const removePreview = (previewItem) => {
+    if (previewItem.persisted) {
+      setExistingImages((current) => current.filter((image) => image !== previewItem.path));
+      setPreviews((current) => current.filter((item) => item.id !== previewItem.id));
+      return;
+    }
+
+    setSelectedImages((current) => current.filter((file) => `${file.name}-${file.size}-${file.lastModified}` !== previewItem.fileId));
+    setPreviews((current) => current.filter((item) => item.id !== previewItem.id));
   };
 
   const handleDelete = async (productId) => {
@@ -76,11 +103,9 @@ function ProductsPage() {
     setIsSubmitting(true);
 
     try {
-      let imagePath = "";
-      if (selectedImage) {
-        const uploaded = await uploadAdminImage(accessToken, "products", selectedImage);
-        imagePath = uploaded.path;
-      }
+      const uploadedImages = selectedImages.length
+        ? await Promise.all(selectedImages.map((file) => uploadAdminImage(accessToken, "products", file).then((uploaded) => uploaded.path)))
+        : [];
 
       const payload = {
         name: form.name,
@@ -91,7 +116,7 @@ function ProductsPage() {
         compareAtPrice: form.compareAtPrice ? Number(form.compareAtPrice) : undefined,
         stock: form.stock ? Number(form.stock) : 0,
         badge: form.badge || undefined,
-        ...(imagePath ? { images: [imagePath] } : {}),
+        images: [...existingImages, ...uploadedImages].filter(Boolean),
         isFeatured: form.isFeatured,
         isBestSeller: form.isBestSeller,
       };
@@ -123,7 +148,7 @@ function ProductsPage() {
           <h2>{t("products")}</h2>
           <p>{t("manageProductCatalog")}</p>
         </div>
-        <button type="button" className="admin-button" onClick={() => setShowModal(true)}>
+        <button type="button" className="admin-button" onClick={openCreateModal}>
           {t("addProduct")}
         </button>
       </div>
@@ -173,8 +198,16 @@ function ProductsPage() {
                       isFeatured: Boolean(product.isFeatured),
                       isBestSeller: Boolean(product.isBestSeller),
                     });
-                    setSelectedImage(null);
-                    setPreview(product.images?.[0] ? mediaUrl(product.images[0]) : "");
+                    setSelectedImages([]);
+                    setExistingImages(product.images || []);
+                    setPreviews(
+                      (product.images || []).map((image, index) => ({
+                        id: `${product._id}-${index}`,
+                        url: mediaUrl(image),
+                        persisted: true,
+                        path: image,
+                      })),
+                    );
                     setShowModal(true);
                   }}
                 >
@@ -197,7 +230,7 @@ function ProductsPage() {
                 <h3>{editingProductId ? t("editProduct") : t("addProductTitle")}</h3>
                 <p>{editingProductId ? t("editProductCopy") : t("addProductCopy")}</p>
               </div>
-              <button type="button" className="admin-modal__close" onClick={() => setShowModal(false)}>
+              <button type="button" className="admin-modal__close" onClick={() => { resetForm(); setShowModal(false); }}>
                 {t("close")}
               </button>
             </div>
@@ -252,11 +285,32 @@ function ProductsPage() {
 
               <div className="admin-upload">
                 <label>
-                  {t("productImage")}
-                  <input type="file" accept="image/*" onChange={(event) => setSelectedImage(event.target.files?.[0] || null)} />
+                  {t("productImages")}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(event) => {
+                      const files = Array.from(event.target.files || []);
+                      setSelectedImages(files);
+                    }}
+                  />
                 </label>
-                {preview ? (
-                  <img src={preview} alt={t("imagePreview")} className="admin-upload__preview" />
+                {previews.length ? (
+                  <div className="admin-upload__preview-grid">
+                    {previews.map((previewItem) => (
+                      <div key={previewItem.id} className="admin-upload__preview-card">
+                        <img src={previewItem.url} alt={t("imagePreview")} className="admin-upload__preview" />
+                        <button
+                          type="button"
+                          className="admin-button admin-button--ghost"
+                          onClick={() => removePreview(previewItem)}
+                        >
+                          {t("remove")}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="admin-upload__preview admin-upload__preview--placeholder">{t("imagePreview")}</div>
                 )}
@@ -274,7 +328,7 @@ function ProductsPage() {
               </div>
 
               <div className="admin-form__actions">
-                <button type="button" className="admin-button admin-button--ghost" onClick={() => setShowModal(false)}>
+                <button type="button" className="admin-button admin-button--ghost" onClick={() => { resetForm(); setShowModal(false); }}>
                   {t("cancel")}
                 </button>
                 <button type="submit" className="admin-button" disabled={isSubmitting}>

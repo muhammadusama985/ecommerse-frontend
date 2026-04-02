@@ -635,7 +635,7 @@ textarea {
 }
 
 .admin-table__row--coupon {
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.75fr) minmax(0, 0.75fr) minmax(86px, 0.7fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.7fr) minmax(0, 0.75fr) minmax(0, 1fr) minmax(110px, 0.8fr);
 }
 
 .admin-table__row--page {
@@ -890,6 +890,18 @@ textarea {
 .admin-upload {
   display: grid;
   gap: 10px;
+}
+
+.admin-upload__preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.admin-upload__preview-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
 }
 
 .admin-field-hint {

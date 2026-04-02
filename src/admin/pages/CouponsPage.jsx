@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createCoupon, deleteCoupon, getCoupons } from "../api/admin";
+import { createCoupon, deleteCoupon, getCoupons, updateCoupon } from "../api/admin";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -8,6 +8,7 @@ const initialForm = {
   code: "",
   discountType: "percentage",
   discountValue: 10,
+  expiresAt: "",
 };
 
 function CouponsPage() {
@@ -18,6 +19,7 @@ function CouponsPage() {
   const [form, setForm] = useState(initialForm);
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingCouponId, setEditingCouponId] = useState("");
 
   useEffect(() => {
     getCoupons(accessToken).then(setCoupons).catch(() => setCoupons([]));
@@ -25,6 +27,23 @@ function CouponsPage() {
 
   const resetForm = () => {
     setForm(initialForm);
+    setEditingCouponId("");
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setShowModal(true);
+  };
+
+  const openEditModal = (coupon) => {
+    setEditingCouponId(coupon._id);
+    setForm({
+      code: coupon.code || "",
+      discountType: coupon.discountType || "percentage",
+      discountValue: coupon.discountValue ?? 10,
+      expiresAt: coupon.expiresAt ? new Date(coupon.expiresAt).toISOString().slice(0, 16) : "",
+    });
+    setShowModal(true);
   };
 
   const handleSubmit = async (event) => {
@@ -32,17 +51,24 @@ function CouponsPage() {
     setIsSubmitting(true);
 
     try {
-      const coupon = await createCoupon(accessToken, {
+      const payload = {
         ...form,
         discountValue: Number(form.discountValue),
-      });
+        expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
+      };
 
-      setCoupons((current) => [coupon, ...current]);
-      notify({ type: "success", message: t("couponCreatedSuccess") });
+      const coupon = editingCouponId
+        ? await updateCoupon(accessToken, editingCouponId, payload)
+        : await createCoupon(accessToken, payload);
+
+      setCoupons((current) =>
+        editingCouponId ? current.map((item) => (item._id === editingCouponId ? coupon : item)) : [coupon, ...current],
+      );
+      notify({ type: "success", message: editingCouponId ? t("couponUpdatedSuccess") : t("couponCreatedSuccess") });
       resetForm();
       setShowModal(false);
     } catch (error) {
-      notify({ type: "error", message: error.message || t("couldNotCreateCoupon") });
+      notify({ type: "error", message: error.message || (editingCouponId ? t("couldNotUpdateCoupon") : t("couldNotCreateCoupon")) });
     } finally {
       setIsSubmitting(false);
     }
@@ -70,7 +96,7 @@ function CouponsPage() {
           <h2>{t("coupons")}</h2>
           <p>{t("couponsPageCopy")}</p>
         </div>
-        <button type="button" className="admin-button" onClick={() => setShowModal(true)}>
+        <button type="button" className="admin-button" onClick={openCreateModal}>
           {t("addCoupon")}
         </button>
       </div>
@@ -80,6 +106,7 @@ function CouponsPage() {
             <span>{t("code")}</span>
             <span>{t("type")}</span>
             <span>{t("value")}</span>
+            <span>{t("expiresAtLabel")}</span>
             <span>{t("actions")}</span>
           </div>
           {!coupons.length ? <div className="admin-table__empty">{t("noDataFound")}</div> : null}
@@ -93,7 +120,11 @@ function CouponsPage() {
               <span>
                 {coupon.discountType === "percentage" ? `${coupon.discountValue}%` : `AED ${Number(coupon.discountValue).toFixed(2)}`}
               </span>
+              <span>{coupon.expiresAt ? new Date(coupon.expiresAt).toLocaleString() : t("noExpiry")}</span>
               <div className="admin-actions">
+                <button type="button" className="admin-button admin-button--ghost" onClick={() => openEditModal(coupon)}>
+                  {t("edit")}
+                </button>
                 <button
                   type="button"
                   className="admin-button admin-button--ghost admin-button--danger"
@@ -112,10 +143,10 @@ function CouponsPage() {
           <div className="admin-modal" onClick={(event) => event.stopPropagation()}>
             <div className="admin-modal__header">
               <div>
-                <h3>{t("addCouponTitle")}</h3>
-                <p>{t("addCouponCopy")}</p>
+                <h3>{editingCouponId ? t("editCouponTitle") : t("addCouponTitle")}</h3>
+                <p>{editingCouponId ? t("editCouponCopy") : t("addCouponCopy")}</p>
               </div>
-              <button type="button" className="admin-modal__close" onClick={() => setShowModal(false)}>
+              <button type="button" className="admin-modal__close" onClick={() => { resetForm(); setShowModal(false); }}>
                 x
               </button>
             </div>
@@ -147,12 +178,21 @@ function CouponsPage() {
                 />
               </label>
 
+              <label>
+                {t("expiresAtLabel")}
+                <input
+                  type="datetime-local"
+                  value={form.expiresAt}
+                  onChange={(event) => setForm({ ...form, expiresAt: event.target.value })}
+                />
+              </label>
+
               <div className="admin-form__actions">
-                <button type="button" className="admin-button admin-button--ghost" onClick={() => setShowModal(false)}>
+                <button type="button" className="admin-button admin-button--ghost" onClick={() => { resetForm(); setShowModal(false); }}>
                   {t("cancel")}
                 </button>
                 <button type="submit" className="admin-button" disabled={isSubmitting}>
-                  {isSubmitting ? t("saving") : t("createCouponCta")}
+                  {isSubmitting ? t("saving") : editingCouponId ? t("saveChanges") : t("createCouponCta")}
                 </button>
               </div>
             </form>
