@@ -837,6 +837,12 @@ main {
   gap: 18px;
 }
 
+.listing-layout--all-products {
+  padding: 18px;
+  border-radius: var(--radius-xl);
+  background: url("/bg.jpeg") center/cover no-repeat;
+}
+
 .filters-panel,
 .listing-content {
   padding: 16px;

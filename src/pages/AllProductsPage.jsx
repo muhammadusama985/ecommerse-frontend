@@ -71,7 +71,7 @@ function AllProductsPage() {
         </div>
       </section>
 
-      <section className="listing-layout">
+      <section className="listing-layout listing-layout--all-products">
         <aside className="filters-panel">
           <h3>{t("filters")}</h3>
           <div className="filter-group">
