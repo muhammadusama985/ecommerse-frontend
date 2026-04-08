@@ -11,6 +11,7 @@ import { ProfilePage } from "./pages/ProfilePage.jsx";
 import { WishlistPage } from "./pages/WishlistPage.jsx";
 import { OrdersPage } from "./pages/OrdersPage.jsx";
 import { AllProductsPage } from "./pages/AllProductsPage.jsx";
+import { CategoriesPage } from "./pages/CategoriesPage.jsx";
 import { ContentPage } from "./pages/ContentPage.jsx";
 import { BlogPage } from "./pages/BlogPage.jsx";
 import { BlogDetailPage } from "./pages/BlogDetailPage.jsx";
@@ -28,6 +29,7 @@ function App() {
           <Shell>
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/categories" element={<CategoriesPage />} />
               <Route path="/best-sellers" element={<BestSellersPage />} />
               <Route path="/products" element={<AllProductsPage />} />
               <Route path="/products/:slug" element={<ProductDetailPage />} />

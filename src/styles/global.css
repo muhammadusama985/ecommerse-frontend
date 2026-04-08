@@ -843,6 +843,25 @@ main {
   background: url("/bg.jpeg") center/cover no-repeat;
 }
 
+.categories-page-section {
+  padding: 18px;
+  border-radius: var(--radius-xl);
+  background: url("/bg.jpeg") center/cover no-repeat;
+}
+
+.categories-page-shell {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: var(--radius-xl);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow);
+}
+
+.category-grid--page {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
 .filters-panel,
 .listing-content {
   padding: 16px;

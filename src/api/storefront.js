@@ -10,4 +10,9 @@ async function getBestSellerPageData() {
   return response.data;
 }
 
-export { getHomePageData, getBestSellerPageData };
+async function getStoreCategories() {
+  const response = await request("/categories");
+  return response.data;
+}
+
+export { getHomePageData, getBestSellerPageData, getStoreCategories };
