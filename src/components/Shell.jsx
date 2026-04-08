@@ -1,5 +1,6 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { ChatbotWidget } from "./ChatbotWidget";
 import { Icon } from "./Icon";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
@@ -188,6 +189,8 @@ function Shell({ children }) {
           </div>
         </div>
       ) : null}
+
+      <ChatbotWidget />
     </div>
   );
 }
