@@ -60,6 +60,7 @@ function Shell({ children }) {
 
         <nav className="main-nav">
           <NavLink to="/"><Icon name="home" className="nav-icon" />{t("home")}</NavLink>
+          <Link to="/#categories"><Icon name="grid" className="nav-icon" />{t("categories")}</Link>
           <NavLink to="/products"><Icon name="grid" className="nav-icon" />{t("allProducts")}</NavLink>
           <NavLink to="/best-sellers"><Icon name="star" className="nav-icon" />{t("bestSellers")}</NavLink>
         </nav>
@@ -119,6 +120,10 @@ function Shell({ children }) {
                     {getLanguageLabel("ar")}
                   </button>
                 </div>
+                <Link to="/#categories" onClick={() => setMenuOpen(false)}>
+                  <Icon name="grid" className="dropdown-icon" />
+                  {t("categories")}
+                </Link>
                 {!isAuthenticated ? (
                   <Link to="/login" onClick={() => setMenuOpen(false)}>
                     <Icon name="user" className="dropdown-icon" />
