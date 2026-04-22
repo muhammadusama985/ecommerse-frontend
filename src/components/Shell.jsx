@@ -51,9 +51,9 @@ function Shell({ children }) {
     <div className="site-shell">
       <header className="site-header">
         <Link to="/" className="brand-mark">
-          <img src="/logo.png" alt="Nature Republic" className="brand-logo" />
+          <img src="/logo.png" alt="Konjo" className="brand-logo" />
           <span className="brand-copy">
-            <strong>Nature Republic</strong>
+            <strong>Konjo</strong>
             <small>{t("beautyEssentials")}</small>
           </span>
         </Link>
@@ -147,7 +147,7 @@ function Shell({ children }) {
 
       <footer className="site-footer">
         <div className="footer-brand">
-          <strong>Nature Republic</strong>
+          <strong>Konjo</strong>
           <p>{t("footerBlurb")}</p>
         </div>
         <div>
