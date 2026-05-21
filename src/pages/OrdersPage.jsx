@@ -1,10 +1,173 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { cancelOrder, getMyOrders } from "../api/orders";
+import { cancelOrder, getMyOrders, requestReturn } from "../api/orders";
 import { mediaUrl } from "../api/client";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
 import { useShop } from "../context/ShopContext";
+
+function ReturnModal({ order, onClose, onSuccess }) {
+  const { t } = useLanguage();
+  const { accessToken } = useShop();
+  const { notify } = useNotifications();
+  const [returnForm, setReturnForm] = useState({
+    returnReason: "",
+    returnDetails: "",
+    refundAccountHolderName: "",
+    refundBankName: "",
+    refundAccountNumber: "",
+    refundIban: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const canRequestReturn = order.orderStatus === "delivered" && 
+    (!order.returnStatus || order.returnStatus === "none" || order.returnStatus === "rejected");
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    
+    if (!returnForm.returnReason.trim()) {
+      setMessage("Please provide a return reason.");
+      return;
+    }
+
+    // Validate bank details for COD
+    if (order.paymentMethod === "cod") {
+      if (!returnForm.refundAccountHolderName.trim() || !returnForm.refundBankName.trim() || !returnForm.refundAccountNumber.trim()) {
+        setMessage("For Cash on Delivery orders, please provide bank account details for refund.");
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    setMessage("");
+
+    try {
+      const updatedOrder = await requestReturn(accessToken, order._id, returnForm);
+      notify({ type: "success", message: "Return request submitted successfully." });
+      onSuccess(updatedOrder);
+    } catch (error) {
+      setMessage(error.message || "Could not submit return request.");
+      notify({ type: "error", message: error.message || "Could not submit return request." });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="confirm-modal confirm-modal--return" onClick={(event) => event.stopPropagation()}>
+        <div className="order-detail__header">
+          <div>
+            <span className="section-eyebrow">Request Return</span>
+            <h3>Order #{order.orderNumber}</h3>
+            <p>Please provide details for your return request.</p>
+          </div>
+          <button type="button" className="ghost-button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="order-detail__section">
+            <strong>Return Reason *</strong>
+            <select
+              value={returnForm.returnReason}
+              onChange={(event) => setReturnForm({ ...returnForm, returnReason: event.target.value })}
+              required
+            >
+              <option value="">Select a reason</option>
+              <option value="Wrong item received">Wrong item received</option>
+              <option value="Item defective/damaged">Item defective/damaged</option>
+              <option value="Item not as described">Item not as described</option>
+              <option value="Changed my mind">Changed my mind</option>
+              <option value="Wrong size">Wrong size</option>
+              <option value="Quality not as expected">Quality not as expected</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div className="order-detail__section">
+            <strong>Additional Details</strong>
+            <textarea
+              value={returnForm.returnDetails}
+              onChange={(event) => setReturnForm({ ...returnForm, returnDetails: event.target.value })}
+              placeholder="Provide any additional details about your return..."
+              rows={3}
+            />
+          </div>
+
+          {order.paymentMethod === "cod" && (
+            <div className="order-detail__section">
+              <strong>Refund Bank Account *</strong>
+              <p className="order-card__reason">
+                For Cash on Delivery orders, please provide your bank details so we can process your refund.
+              </p>
+              <div className="return-bank-form">
+                <label>
+                  Account Holder Name
+                  <input
+                    type="text"
+                    value={returnForm.refundAccountHolderName}
+                    onChange={(event) => setReturnForm({ ...returnForm, refundAccountHolderName: event.target.value })}
+                    required
+                  />
+                </label>
+                <label>
+                  Bank Name
+                  <input
+                    type="text"
+                    value={returnForm.refundBankName}
+                    onChange={(event) => setReturnForm({ ...returnForm, refundBankName: event.target.value })}
+                    required
+                  />
+                </label>
+                <label>
+                  Account Number
+                  <input
+                    type="text"
+                    value={returnForm.refundAccountNumber}
+                    onChange={(event) => setReturnForm({ ...returnForm, refundAccountNumber: event.target.value })}
+                    required
+                  />
+                </label>
+                <label>
+                  IBAN (Optional)
+                  <input
+                    type="text"
+                    value={returnForm.refundIban}
+                    onChange={(event) => setReturnForm({ ...returnForm, refundIban: event.target.value })}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+
+          {order.paymentMethod === "stripe" && (
+            <div className="order-detail__section">
+              <strong>Refund Method</strong>
+              <p className="order-card__reason">
+                For Stripe payments, the refund will be automatically processed back to your original payment method.
+              </p>
+            </div>
+          )}
+
+          {message ? <p className="feedback-note">{message}</p> : null}
+
+          <div className="order-detail__actions">
+            <button type="button" className="ghost-button" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="solid-button" disabled={isSubmitting || !canRequestReturn}>
+              {isSubmitting ? "Submitting..." : "Submit Return Request"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function OrdersPage() {
   const { t } = useLanguage();
@@ -15,6 +178,7 @@ function OrdersPage() {
   const [message, setMessage] = useState("");
   const [busyOrderId, setBusyOrderId] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showReturnModal, setShowReturnModal] = useState(false);
 
   useEffect(() => {
     if (location.state?.successMessage) {
@@ -39,7 +203,7 @@ function OrdersPage() {
   const handleCancelOrder = async (event, orderId) => {
     event.stopPropagation();
 
-    const accepted = window.confirm("Cancel this order?");
+    const accepted = window.confirm("Are you sure you want to cancel this order?");
     if (!accepted) {
       return;
     }
@@ -61,6 +225,17 @@ function OrdersPage() {
     } finally {
       setBusyOrderId("");
     }
+  };
+
+  const handleReturnSuccess = (updatedOrder) => {
+    setOrders((current) => current.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)));
+    setSelectedOrder(updatedOrder);
+    setShowReturnModal(false);
+  };
+
+  const canRequestReturn = (order) => {
+    return order.orderStatus === "delivered" && 
+      (!order.returnStatus || order.returnStatus === "none" || order.returnStatus === "rejected");
   };
 
   if (!isAuthenticated) {
@@ -192,6 +367,11 @@ function OrdersPage() {
                 <span>Shipping</span>
                 <strong>{selectedOrder.shippingStatus}</strong>
                 {selectedOrder.trackingNumber ? <p>{selectedOrder.trackingNumber}</p> : null}
+                {selectedOrder.shipmentLabelUrl ? (
+                  <a href={selectedOrder.shipmentLabelUrl} target="_blank" rel="noopener noreferrer" className="order-detail__link">
+                    Download Shipping Label
+                  </a>
+                ) : null}
               </div>
               <div className="order-detail__card">
                 <span>Total</span>
@@ -229,6 +409,12 @@ function OrdersPage() {
                 {selectedOrder.shippingAddress?.addressLine2 ? `, ${selectedOrder.shippingAddress.addressLine2}` : ""}
                 {selectedOrder.shippingAddress?.city ? `, ${selectedOrder.shippingAddress.city}` : ""}
                 {selectedOrder.shippingAddress?.country ? `, ${selectedOrder.shippingAddress.country}` : ""}
+                {selectedOrder.shippingAddress?.phone ? (
+                  <>
+                    <br />
+                    Phone: {selectedOrder.shippingAddress.phone}
+                  </>
+                ) : null}
               </p>
             </div>
 
@@ -250,6 +436,41 @@ function OrdersPage() {
                 <strong>AED {Number(selectedOrder.totalAmount || 0).toFixed(2)}</strong>
               </div>
             </div>
+
+            {/* Return Status Section */}
+            {selectedOrder.returnStatus && selectedOrder.returnStatus !== "none" ? (
+              <div className="order-detail__section order-detail__section--return">
+                <strong>Return Status</strong>
+                <p><strong>Status:</strong> {selectedOrder.returnStatus}</p>
+                {selectedOrder.returnReason ? <p><strong>Reason:</strong> {selectedOrder.returnReason}</p> : null}
+                {selectedOrder.returnDetails ? <p><strong>Details:</strong> {selectedOrder.returnDetails}</p> : null}
+                {selectedOrder.returnTrackingNumber ? (
+                  <p><strong>Return Tracking:</strong> {selectedOrder.returnTrackingNumber}</p>
+                ) : null}
+                {selectedOrder.returnShipmentLabelUrl ? (
+                  <a href={selectedOrder.returnShipmentLabelUrl} target="_blank" rel="noopener noreferrer" className="order-detail__link">
+                    Download Return Label
+                  </a>
+                ) : null}
+                {selectedOrder.returnResolutionNote ? (
+                  <p><strong>Admin Note:</strong> {selectedOrder.returnResolutionNote}</p>
+                ) : null}
+              </div>
+            ) : (
+              canRequestReturn(selectedOrder) && (
+                <div className="order-detail__section order-detail__section--return-action">
+                  <strong>Need to Return?</strong>
+                  <p>If you need to return this order, you can request a return.</p>
+                  <button
+                    type="button"
+                    className="solid-button solid-button--secondary"
+                    onClick={() => setShowReturnModal(true)}
+                  >
+                    Request Return
+                  </button>
+                </div>
+              )
+            )}
 
             {selectedOrder.paymentMethod === "stripe" && selectedOrder.paymentStatus === "refunded" ? (
               <div className="order-detail__section">
@@ -279,9 +500,30 @@ function OrdersPage() {
               </div>
             ) : null}
 
-            
+            <div className="order-detail__actions">
+              <button type="button" className="ghost-button" onClick={() => setSelectedOrder(null)}>
+                Close
+              </button>
+              {canRequestReturn(selectedOrder) && (
+                <button
+                  type="button"
+                  className="solid-button solid-button--secondary"
+                  onClick={() => setShowReturnModal(true)}
+                >
+                  Request Return
+                </button>
+              )}
+            </div>
           </div>
         </div>
+      ) : null}
+
+      {showReturnModal && selectedOrder ? (
+        <ReturnModal
+          order={selectedOrder}
+          onClose={() => setShowReturnModal(false)}
+          onSuccess={handleReturnSuccess}
+        />
       ) : null}
     </section>
   );

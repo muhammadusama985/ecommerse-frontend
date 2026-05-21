@@ -1272,3 +1272,156 @@ textarea {
     width: auto;
   }
 }
+
+/* Aramex Settings Styles */
+.admin-panel__header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-panel__header h3 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.admin-panel__header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.aramex-settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  padding: 24px;
+}
+
+.aramex-settings-section h4 {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.aramex-settings-field {
+  margin-bottom: 16px;
+}
+
+.aramex-settings-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.aramex-settings-field input,
+.aramex-settings-field select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.aramex-settings-field input:focus,
+.aramex-settings-field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(235, 77, 143, 0.1);
+}
+
+.aramex-settings-actions {
+  padding: 20px 24px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-button--primary {
+  background: linear-gradient(135deg, #ff74ad, #e14587);
+  color: white;
+  border: none;
+}
+
+.admin-button--primary:hover {
+  background: linear-gradient(135deg, #ff5c9a, #d13278);
+}
+
+.admin-button--secondary {
+  background: var(--surface-soft);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.admin-button--secondary:hover {
+  background: var(--line);
+}
+
+/* Aramex Shipping Actions */
+.aramex-shipping-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: var(--surface-soft);
+  border-radius: var(--radius-md);
+  margin-top: 12px;
+}
+
+.aramex-shipping-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aramex-shipping-status__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.aramex-shipping-status__item span {
+  color: var(--muted);
+  min-width: 120px;
+}
+
+.aramex-shipping-status__item strong {
+  color: var(--text);
+}
+
+.aramex-shipping-status__item a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.aramex-shipping-status__item a:hover {
+  color: var(--accent-dark);
+}
+
+.aramex-shipping-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.aramex-shipping-buttons .admin-button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 768px) {
+  .aramex-settings-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}

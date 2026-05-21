@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getOrders, updateOrderReturnStatus, updateOrderStatus } from "../api/admin";
+import { getOrders, updateOrderReturnStatus, updateOrderStatus, createOrderShipment, trackOrderShipment, createOrderReturnShipment, trackOrderReturnShipment } from "../api/admin";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -17,6 +17,10 @@ function OrdersPage() {
   const [statusDraft, setStatusDraft] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [returnDraft, setReturnDraft] = useState({ returnStatus: "approved", returnResolutionNote: "" });
+  const [isCreatingShipment, setIsCreatingShipment] = useState(false);
+  const [isTrackingShipment, setIsTrackingShipment] = useState(false);
+  const [isCreatingReturnShipment, setIsCreatingReturnShipment] = useState(false);
+  const [isTrackingReturnShipment, setIsTrackingReturnShipment] = useState(false);
 
   useEffect(() => {
     getOrders(accessToken).then(setOrders).catch(() => setOrders([]));
@@ -69,9 +73,71 @@ function OrdersPage() {
       updateOrderInState(updated);
       notify({ type: "success", message: "Return status updated successfully." });
     } catch (error) {
-      notify({ type: "error", message: error.message || "Could not update return status." });
+      notify({ type: "error", message: "Could not update return status." });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCreateShipment = async (orderId) => {
+    setIsCreatingShipment(true);
+    try {
+      const updated = await createOrderShipment(accessToken, orderId);
+      updateOrderInState(updated);
+      notify({ type: "success", message: `Shipment created. Tracking: ${updated.trackingNumber || "N/A"}` });
+    } catch (error) {
+      notify({ type: "error", message: error.message || "Failed to create Aramex shipment." });
+    } finally {
+      setIsCreatingShipment(false);
+    }
+  };
+
+  const handleRecreateShipment = async (orderId) => {
+    const confirmed = window.confirm(
+      "This will create a new shipment and may replace the existing tracking number. Are you sure you want to continue?"
+    );
+    if (!confirmed) {
+      return;
+    }
+    await handleCreateShipment(orderId);
+  };
+
+  const handleTrackShipment = async (orderId) => {
+    setIsTrackingShipment(true);
+    try {
+      const updated = await trackOrderShipment(accessToken, orderId);
+      updateOrderInState(updated);
+      notify({ type: "success", message: "Tracking info updated." });
+    } catch (error) {
+      notify({ type: "error", message: error.message || "Failed to track shipment." });
+    } finally {
+      setIsTrackingShipment(false);
+    }
+  };
+
+  const handleCreateReturnShipment = async (orderId) => {
+    setIsCreatingReturnShipment(true);
+    try {
+      const updated = await createOrderReturnShipment(accessToken, orderId);
+      updateOrderInState(updated);
+      notify({ type: "success", message: `Return shipment created. Tracking: ${updated.returnTrackingNumber || "N/A"}` });
+    } catch (error) {
+      notify({ type: "error", message: error.message || "Failed to create return shipment." });
+    } finally {
+      setIsCreatingReturnShipment(false);
+    }
+  };
+
+  const handleTrackReturnShipment = async (orderId) => {
+    setIsTrackingReturnShipment(true);
+    try {
+      const updated = await trackOrderReturnShipment(accessToken, orderId);
+      updateOrderInState(updated);
+      notify({ type: "success", message: "Return tracking info updated." });
+    } catch (error) {
+      notify({ type: "error", message: error.message || "Failed to track return shipment." });
+    } finally {
+      setIsTrackingReturnShipment(false);
     }
   };
 
@@ -197,6 +263,66 @@ function OrdersPage() {
                 </div>
               </div>
 
+              {/* Aramex Shipping Actions */}
+              <div className="admin-order-detail__section">
+                <strong>Aramex Shipping</strong>
+                <div className="aramex-shipping-actions">
+                  <div className="aramex-shipping-status">
+                    <div className="aramex-shipping-status__item">
+                      <span>Provider:</span>
+                      <strong>{selectedOrder.shippingProvider || "N/A"}</strong>
+                    </div>
+                    <div className="aramex-shipping-status__item">
+                      <span>Shipping Status:</span>
+                      <strong>{selectedOrder.shippingStatus || "N/A"}</strong>
+                    </div>
+                    <div className="aramex-shipping-status__item">
+                      <span>Tracking Number:</span>
+                      <strong>{selectedOrder.trackingNumber || "Not created yet"}</strong>
+                    </div>
+                    {selectedOrder.shipmentLabelUrl ? (
+                      <div className="aramex-shipping-status__item">
+                        <span>Label URL:</span>
+                        <a href={selectedOrder.shipmentLabelUrl} target="_blank" rel="noopener noreferrer">
+                          Download Label
+                        </a>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="aramex-shipping-buttons">
+                    {!selectedOrder.trackingNumber ? (
+                      <button
+                        type="button"
+                        className="admin-button admin-button--primary"
+                        onClick={() => handleCreateShipment(selectedOrder._id)}
+                        disabled={isCreatingShipment}
+                      >
+                        {isCreatingShipment ? "Creating Shipment..." : "Create Shipment"}
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="admin-button"
+                          onClick={() => handleTrackShipment(selectedOrder._id)}
+                          disabled={isTrackingShipment}
+                        >
+                          {isTrackingShipment ? "Tracking..." : "Track Shipment"}
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-button admin-button--secondary"
+                          onClick={() => handleRecreateShipment(selectedOrder._id)}
+                          disabled={isCreatingShipment}
+                        >
+                          Re-create Shipment
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="admin-order-detail__actions">
                 <label>
                   {t("updateStatus")}
@@ -254,7 +380,7 @@ function OrdersPage() {
                           Bank: {selectedOrder.returnRefundAccount.bankName || "N/A"}
                           <br />
                           Account: {selectedOrder.returnRefundAccount.accountNumber}
-                          {selectedOrder.returnRefundAccount.iban ? (
+                          {selectedOrder.returnRefundAccount?.iban ? (
                             <>
                               <br />
                               IBAN: {selectedOrder.returnRefundAccount.iban}
@@ -271,6 +397,48 @@ function OrdersPage() {
                       <p>Stripe returns should be refunded back automatically to the original payment method. Separate bank account details are not required.</p>
                     </div>
                   )}
+
+                  {/* Return Shipment Actions */}
+                  <div className="aramex-shipping-actions">
+                    <div className="aramex-shipping-status">
+                      <div className="aramex-shipping-status__item">
+                        <span>Return Tracking:</span>
+                        <strong>{selectedOrder.returnTrackingNumber || "Not created yet"}</strong>
+                      </div>
+                      {selectedOrder.returnShipmentLabelUrl ? (
+                        <div className="aramex-shipping-status__item">
+                          <span>Return Label URL:</span>
+                          <a href={selectedOrder.returnShipmentLabelUrl} target="_blank" rel="noopener noreferrer">
+                            Download Return Label
+                          </a>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="aramex-shipping-buttons">
+                      {!selectedOrder.returnTrackingNumber ? (
+                        <button
+                          type="button"
+                          className="admin-button admin-button--primary"
+                          onClick={() => handleCreateReturnShipment(selectedOrder._id)}
+                          disabled={isCreatingReturnShipment}
+                        >
+                          {isCreatingReturnShipment ? "Creating..." : "Create Return Shipment"}
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="admin-button"
+                            onClick={() => handleTrackReturnShipment(selectedOrder._id)}
+                            disabled={isTrackingReturnShipment}
+                          >
+                            {isTrackingReturnShipment ? "Tracking..." : "Track Return"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="admin-order-detail__actions">
                     <label>
                       Return status

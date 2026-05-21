@@ -3060,6 +3060,71 @@ html[dir="rtl"] .cart-list__actions > * + * {
   margin-bottom: 14px;
 }
 
+.order-detail__section--return {
+  background: #fff5fb;
+  border-color: rgba(235, 77, 143, 0.2);
+}
+
+.order-detail__section--return p {
+  margin: 6px 0 0;
+}
+
+.order-detail__section--return-action {
+  background: #f0f9ff;
+  border-color: rgba(59, 130, 246, 0.2);
+  text-align: center;
+}
+
+.order-detail__section--return-action p {
+  margin: 8px 0 12px;
+}
+
+.order-detail__link {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.order-detail__link:hover {
+  color: var(--accent-dark);
+}
+
+.order-detail__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.return-bank-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.return-bank-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.return-bank-form input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.confirm-modal--return {
+  width: min(520px, 100%);
+}
+
 .order-detail__items {
   display: grid;
   gap: 10px;
