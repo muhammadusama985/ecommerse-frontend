@@ -43,6 +43,17 @@ function OrdersPage() {
       return;
     }
 
+    // Validate: Cannot skip directly to processing/shipped without confirming first
+    const currentStatus = orders.find(o => o._id === orderId)?.orderStatus;
+    if (statusDraft === "processing" && currentStatus === "placed") {
+      notify({ type: "error", message: "Please confirm the order before moving to processing." });
+      return;
+    }
+    if (statusDraft === "shipped" && !["confirmed", "processing"].includes(currentStatus)) {
+      notify({ type: "error", message: "Please confirm and process the order before shipping." });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const updated = await updateOrderStatus(accessToken, orderId, {
@@ -50,15 +61,24 @@ function OrdersPage() {
         ...(statusDraft === "cancelled" ? { cancellationReason: cancelReason.trim() } : {}),
       });
       updateOrderInState(updated);
-      notify({
-        type: "success",
-        message:
-          statusDraft === "cancelled"
-            ? updated.paymentStatus === "refunded"
-              ? t("orderCancelledRefundedSuccess")
-              : t("orderCancelledStockRestored")
-            : t("orderUpdatedToStatus", { status: statusDraft }),
-      });
+      
+      // Show special message for COD orders reaching delivered
+      if (statusDraft === "delivered" && selectedOrder?.paymentMethod === "cod" && updated.paymentStatus === "pending") {
+        notify({
+          type: "success",
+          message: "Order marked as delivered. Remember to update payment status to 'Paid' after collecting COD.",
+        });
+      } else {
+        notify({
+          type: "success",
+          message:
+            statusDraft === "cancelled"
+              ? updated.paymentStatus === "refunded"
+                ? t("orderCancelledRefundedSuccess")
+                : t("orderCancelledStockRestored")
+              : t("orderUpdatedToStatus", { status: statusDraft }),
+        });
+      }
     } catch (error) {
       notify({ type: "error", message: error.message || t("orderUpdateError") });
     } finally {
@@ -220,6 +240,30 @@ function OrdersPage() {
             </div>
 
             <div className="admin-order-detail">
+              {/* Workflow Progress Indicator */}
+              <div className="admin-order-workflow">
+                <div className={`workflow-step ${["placed", "confirmed", "processing", "shipped", "delivered"].includes(selectedOrder.orderStatus) ? "completed" : ""}`}>
+                  <span className="workflow-step__number">1</span>
+                  <span className="workflow-step__label">Placed</span>
+                </div>
+                <div className={`workflow-step ${["confirmed", "processing", "shipped", "delivered"].includes(selectedOrder.orderStatus) ? "completed" : ""}`}>
+                  <span className="workflow-step__number">2</span>
+                  <span className="workflow-step__label">Confirmed</span>
+                </div>
+                <div className={`workflow-step ${["processing", "shipped", "delivered"].includes(selectedOrder.orderStatus) ? "completed" : ""}`}>
+                  <span className="workflow-step__number">3</span>
+                  <span className="workflow-step__label">Processing</span>
+                </div>
+                <div className={`workflow-step ${["shipped", "delivered"].includes(selectedOrder.orderStatus) ? "completed" : ""}`}>
+                  <span className="workflow-step__number">4</span>
+                  <span className="workflow-step__label">Shipped</span>
+                </div>
+                <div className={`workflow-step ${selectedOrder.orderStatus === "delivered" ? "completed" : ""}`}>
+                  <span className="workflow-step__number">5</span>
+                  <span className="workflow-step__label">Delivered</span>
+                </div>
+              </div>
+
               <div className="admin-order-detail__grid">
                 <div className="admin-order-detail__card">
                   <strong>{t("customer")}</strong>
@@ -227,7 +271,11 @@ function OrdersPage() {
                 </div>
                 <div className="admin-order-detail__card">
                   <strong>{t("paymentLabel")}</strong>
-                  <p>{selectedOrder.paymentMethod || t("na")} / {selectedOrder.paymentStatus || t("na")}</p>
+                  <p>
+                    <span className={`payment-method ${selectedOrder.paymentMethod}`}>{selectedOrder.paymentMethod?.toUpperCase()}</span>
+                    <span> / </span>
+                    <span className={`payment-status ${selectedOrder.paymentStatus}`}>{selectedOrder.paymentStatus}</span>
+                  </p>
                 </div>
                 <div className="admin-order-detail__card">
                   <strong>{t("shipping")}</strong>
@@ -245,6 +293,7 @@ function OrdersPage() {
                   {selectedOrder.shippingAddress?.fullName || t("na")}
                   <br />
                   {selectedOrder.shippingAddress?.addressLine1 || ""}
+                  {selectedOrder.shippingAddress?.addressLine2 ? `, ${selectedOrder.shippingAddress.addressLine2}` : ""}
                   {selectedOrder.shippingAddress?.city ? `, ${selectedOrder.shippingAddress.city}` : ""}
                   {selectedOrder.shippingAddress?.country ? `, ${selectedOrder.shippingAddress.country}` : ""}
                 </p>
@@ -264,7 +313,7 @@ function OrdersPage() {
               </div>
 
               {/* Aramex Shipping Actions */}
-              <div className="admin-order-detail__section">
+              <div className={`admin-order-detail__section ${selectedOrder.orderStatus !== "placed" ? "admin-order-detail__section--shipping enabled" : ""}`}>
                 <strong>Aramex Shipping</strong>
                 <div className="aramex-shipping-actions">
                   <div className="aramex-shipping-status">
@@ -295,7 +344,8 @@ function OrdersPage() {
                         type="button"
                         className="admin-button admin-button--primary"
                         onClick={() => handleCreateShipment(selectedOrder._id)}
-                        disabled={isCreatingShipment}
+                        disabled={isCreatingShipment || selectedOrder.orderStatus === "placed"}
+                        title={selectedOrder.orderStatus === "placed" ? "Please confirm the order first" : "Create Aramex shipment"}
                       >
                         {isCreatingShipment ? "Creating Shipment..." : "Create Shipment"}
                       </button>
@@ -322,6 +372,13 @@ function OrdersPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Helper text for shipping */}
+              {selectedOrder.orderStatus === "placed" && !selectedOrder.trackingNumber ? (
+                <div className="admin-order-helper">
+                  <p>⚠ Please click "Confirm Order" below to verify the order details before creating the shipment.</p>
+                </div>
+              ) : null}
 
               <div className="admin-order-detail__actions">
                 <label>
@@ -360,6 +417,29 @@ function OrdersPage() {
                 >
                   {isSubmitting ? t("saving") : t("saveStatus")}
                 </button>
+              </div>
+
+              {/* Payment Status Update - Important for COD orders */}
+              <div className="admin-order-detail__section admin-order-detail__section--payment">
+                <strong>Payment Status</strong>
+                <p className="payment-info">
+                  {selectedOrder.paymentMethod === "stripe" ? (
+                    selectedOrder.paymentStatus === "paid" ? (
+                      <span className="payment-note payment-note--success">✓ Stripe payment already collected</span>
+                    ) : (
+                      <span className="payment-note">Stripe payment status: {selectedOrder.paymentStatus}</span>
+                    )
+                  ) : selectedOrder.paymentStatus === "paid" ? (
+                    <span className="payment-note payment-note--success">✓ COD payment collected</span>
+                  ) : (
+                    <span className="payment-note payment-note--warning">⚠ COD payment not collected yet</span>
+                  )}
+                </p>
+                {selectedOrder.paymentMethod === "cod" && selectedOrder.paymentStatus !== "paid" ? (
+                  <div className="payment-update-hint">
+                    <p>For COD orders: After delivering the package and collecting payment, update payment status to "paid" to complete the order.</p>
+                  </div>
+                ) : null}
               </div>
 
               {selectedOrder.returnStatus && selectedOrder.returnStatus !== "none" ? (

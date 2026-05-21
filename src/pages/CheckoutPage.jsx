@@ -81,7 +81,7 @@ function CheckoutView({
                       <div>
                         <strong>{address.fullName}</strong>
                         <p>
-                          {address.addressLine1}, {address.city}, {address.country}
+                          {address.addressLine1}{address.addressLine2 ? `, ${address.addressLine2}` : ""}, {address.city}, {address.country}
                         </p>
                       </div>
                     </label>

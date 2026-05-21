@@ -121,7 +121,9 @@ function ProfilePage() {
             <article key={address._id} className="address-card address-card--static">
               <div>
                 <strong>{address.fullName} {address.isDefault ? t("defaultAddress") : ""}</strong>
-                <p>{address.addressLine1}, {address.city}, {address.country}</p>
+                <p>
+                  {address.addressLine1}{address.addressLine2 ? `, ${address.addressLine2}` : ""}, {address.city}, {address.country}
+                </p>
               </div>
               <button type="button" className="ghost-button" onClick={() => handleDeleteAddress(address._id)}>{t("remove")}</button>
             </article>
@@ -147,6 +149,10 @@ function ProfilePage() {
           <label className="auth-form__wide">
             {t("addressLine1")}
             <input value={addressForm.addressLine1} onChange={(event) => setAddressForm({ ...addressForm, addressLine1: event.target.value })} required />
+          </label>
+          <label className="auth-form__wide">
+            {t("addressLine2")}
+            <input value={addressForm.addressLine2} onChange={(event) => setAddressForm({ ...addressForm, addressLine2: event.target.value })} placeholder={t("optional")} />
           </label>
           <label>
             {t("area")}

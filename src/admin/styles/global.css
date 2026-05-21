@@ -944,6 +944,148 @@ textarea {
   gap: 20px;
 }
 
+/* Order Workflow Progress */
+.admin-order-workflow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 16px;
+  border: 1px solid rgba(233, 223, 212, 0.92);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.admin-order-workflow .workflow-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  position: relative;
+}
+
+.admin-order-workflow .workflow-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 16px;
+  left: calc(50% + 20px);
+  width: calc(100% - 40px);
+  height: 2px;
+  background: var(--line);
+  z-index: 0;
+}
+
+.admin-order-workflow .workflow-step.completed:not(:last-child)::after {
+  background: var(--accent);
+}
+
+.workflow-step__number {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--muted);
+  position: relative;
+  z-index: 1;
+}
+
+.workflow-step.completed .workflow-step__number {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.workflow-step__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.workflow-step.completed .workflow-step__label {
+  color: var(--text);
+}
+
+/* Payment Method & Status Badges */
+.payment-method,
+.payment-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.payment-method.stripe {
+  background: #635bff;
+  color: white;
+}
+
+.payment-method.cod {
+  background: #f59e0b;
+  color: white;
+}
+
+.payment-status.paid {
+  background: #10b981;
+  color: white;
+}
+
+.payment-status.pending {
+  background: #f59e0b;
+  color: white;
+}
+
+.payment-status.refunded {
+  background: #6b7280;
+  color: white;
+}
+
+/* Aramex Shipping Section */
+.aramex-shipping-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.aramex-shipping-status {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(248, 244, 239, 0.9);
+  border: 1px solid rgba(233, 223, 212, 0.92);
+}
+
+.aramex-shipping-status__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.aramex-shipping-status__item span {
+  color: var(--muted);
+}
+
+.aramex-shipping-status__item strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.aramex-shipping-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .admin-order-detail__grid {
   display: grid;
   gap: 14px;
@@ -987,6 +1129,72 @@ textarea {
 .admin-order-detail__subsection strong {
   display: block;
   margin-bottom: 8px;
+}
+
+/* Payment Section Styles */
+.admin-order-detail__section--payment {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.payment-info {
+  margin-bottom: 8px !important;
+}
+
+.payment-note {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.payment-note--success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+
+.payment-note--warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+}
+
+.payment-update-hint {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.payment-update-hint p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #92400e;
+}
+
+/* Order Helper Text */
+.admin-order-helper {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.admin-order-helper p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #92400e;
+}
+
+/* Disable state for shipment section before confirmation */
+.admin-order-detail__section--shipping {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.admin-order-detail__section--shipping.enabled {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .admin-order-items {
