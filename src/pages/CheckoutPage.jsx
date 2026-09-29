@@ -193,7 +193,7 @@ function CheckoutView({
                     <strong>{t("stripeCard")}</strong>
                     <p>
                       {isStripeReady
-                        ? "Pay securely with your card using Stripe. Cash on delivery is not available."
+                        ? "Pay securely with your card using Stripe."
                         : "Add a Stripe publishable key to enable card payments."}
                     </p>
                   </div>
