@@ -46,7 +46,7 @@ function CheckoutView({
   const shippingCharge = Number(quote?.shippingAmount ?? 0);
   const discount = Number(quote?.discountAmount ?? cart?.discountAmount ?? 0);
   const checkoutTotal = Number(
-    (quote?.totalAmount ?? Number(cart?.total || cart?.subtotal || 0) + Number(shippingAmount || 0)).toFixed(2),
+    (quote?.totalAmount ?? Number(cart?.total || cart?.subtotal || 0) + Number(shippingCharge || 0)).toFixed(2),
   );
   const shippingCurrency = quote?.currency || "AED";
 
