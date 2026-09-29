@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { mediaUrl } from "../api/client";
 import { createProduct, deleteProduct, getCategories, getProducts, updateProduct, uploadAdminImage } from "../api/admin";
+import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -31,9 +32,15 @@ function ProductsPage() {
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingProductId, setEditingProductId] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
 
   useEffect(() => {
-    getProducts(accessToken).then(setProducts).catch(() => setProducts([]));
+    setIsLoading(true);
+    getProducts(accessToken)
+      .then(setProducts)
+      .catch(() => setProducts([]))
+      .finally(() => setIsLoading(false));
     getCategories(accessToken).then(setCategories).catch(() => setCategories([]));
   }, [accessToken]);
 
@@ -82,6 +89,8 @@ function ProductsPage() {
   };
 
   const handleDelete = async (productId) => {
+    if (busyId) return;
+
     const accepted = await confirm({
       title: t("deleteProduct"),
       message: t("deleteProductConfirm"),
@@ -93,9 +102,14 @@ function ProductsPage() {
       return;
     }
 
-    await deleteProduct(accessToken, productId);
-    setProducts((current) => current.filter((product) => product._id !== productId));
-    notify({ type: "success", message: t("productDeletedSuccess") });
+    setBusyId(productId);
+    try {
+      await deleteProduct(accessToken, productId);
+      setProducts((current) => current.filter((product) => product._id !== productId));
+      notify({ type: "success", message: t("productDeletedSuccess") });
+    } finally {
+      setBusyId("");
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -163,7 +177,11 @@ function ProductsPage() {
             <span>{t("stock")}</span>
             <span>{t("actions")}</span>
           </div>
-          {!products.length ? <div className="admin-table__empty">{t("noDataFound")}</div> : null}
+          {isLoading ? (
+            <AdminLoading variant="table" label={t("loadingProducts")} count={5} />
+          ) : !products.length ? (
+            <div className="admin-table__empty">{t("noDataFound")}</div>
+          ) : null}
           {products.map((product) => (
             <article key={product._id} className="admin-table__row admin-table__row--products">
               {product.images?.[0] ? (
@@ -213,7 +231,13 @@ function ProductsPage() {
                 >
                   {t("edit")}
                 </button>
-                <button type="button" className="admin-button admin-button--ghost admin-button--danger" onClick={() => handleDelete(product._id)}>
+                <button
+                  type="button"
+                  className="admin-button admin-button--ghost admin-button--danger"
+                  onClick={() => handleDelete(product._id)}
+                  disabled={Boolean(busyId)}
+                  aria-busy={busyId === product._id}
+                >
                   {t("delete")}
                 </button>
               </div>

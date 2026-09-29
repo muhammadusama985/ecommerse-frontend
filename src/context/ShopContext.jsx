@@ -11,21 +11,31 @@ function ShopProvider({ children }) {
   const [user, setUser] = useState(() => getStoredUser());
   const [cart, setCart] = useState(null);
   const [wishlist, setWishlist] = useState([]);
+  // True while the signed-in customer's profile, cart and wishlist are still
+  // being fetched. Without this, pages read a null cart and briefly render
+  // "your basket is empty" while the request is still in flight.
+  const [isSessionLoading, setIsSessionLoading] = useState(Boolean(getStoredToken()));
 
   const refreshSessionData = async (token = accessToken) => {
     if (!token) {
       return;
     }
 
-    const [userResponse, cartResponse, wishlistResponse] = await Promise.all([
-      getCurrentUser(token),
-      fetchCart(token),
-      fetchWishlist(token),
-    ]);
+    setIsSessionLoading(true);
 
-    setUser(userResponse);
-    setCart(cartResponse);
-    setWishlist(wishlistResponse);
+    try {
+      const [userResponse, cartResponse, wishlistResponse] = await Promise.all([
+        getCurrentUser(token),
+        fetchCart(token),
+        fetchWishlist(token),
+      ]);
+
+      setUser(userResponse);
+      setCart(cartResponse);
+      setWishlist(wishlistResponse);
+    } finally {
+      setIsSessionLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -80,6 +90,7 @@ function ShopProvider({ children }) {
       cart,
       wishlist,
       isAuthenticated: Boolean(accessToken && user),
+      isSessionLoading,
       setSession(session) {
         setStoredSession(session);
         setAccessToken(session.accessToken);
@@ -97,7 +108,7 @@ function ShopProvider({ children }) {
       setWishlist,
       refreshSessionData,
     }),
-    [accessToken, user, cart, wishlist],
+    [accessToken, user, cart, wishlist, isSessionLoading],
   );
 
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;

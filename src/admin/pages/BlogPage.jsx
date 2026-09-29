@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { mediaUrl } from "../api/client";
 import { createBlogPost, deleteBlogPost, getBlogPosts, uploadAdminImage } from "../api/admin";
+import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -17,9 +18,15 @@ function BlogPage() {
   const [preview, setPreview] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
 
   useEffect(() => {
-    getBlogPosts(accessToken).then(setPosts).catch(() => setPosts([]));
+    setIsLoading(true);
+    getBlogPosts(accessToken)
+      .then(setPosts)
+      .catch(() => setPosts([]))
+      .finally(() => setIsLoading(false));
   }, [accessToken]);
 
   useEffect(() => {
@@ -92,7 +99,11 @@ function BlogPage() {
             <span>{t("status")}</span>
             <span>{t("actions")}</span>
           </div>
-          {!posts.length ? <div className="admin-table__empty">{t("noDataFound")}</div> : null}
+          {isLoading ? (
+            <AdminLoading variant="table" label={t("loadingPosts")} count={5} />
+          ) : !posts.length ? (
+            <div className="admin-table__empty">{t("noDataFound")}</div>
+          ) : null}
           {posts.map((post) => (
             <article key={post._id} className="admin-table__row admin-table__row--blog">
               {post.coverImage ? (
@@ -111,6 +122,8 @@ function BlogPage() {
                   type="button"
                   className="admin-button admin-button--ghost admin-button--danger"
                   onClick={async () => {
+                    if (busyId) return;
+
                     const accepted = await confirm({
                       title: t("deleteBlogPostTitle"),
                       message: t("deleteBlogPostConfirm"),
@@ -121,10 +134,18 @@ function BlogPage() {
                     if (!accepted) {
                       return;
                     }
-                    await deleteBlogPost(accessToken, post._id);
-                    setPosts((current) => current.filter((item) => item._id !== post._id));
-                    notify({ type: "success", message: t("blogPostDeletedSuccess") });
+
+                    setBusyId(post._id);
+                    try {
+                      await deleteBlogPost(accessToken, post._id);
+                      setPosts((current) => current.filter((item) => item._id !== post._id));
+                      notify({ type: "success", message: t("blogPostDeletedSuccess") });
+                    } finally {
+                      setBusyId("");
+                    }
                   }}
+                  disabled={Boolean(busyId)}
+                  aria-busy={busyId === post._id}
                 >
                   {t("delete")}
                 </button>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { deleteReview, getReviews, updateReview } from "../api/admin";
+import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -20,9 +21,15 @@ function ReviewsPage() {
   const [editingReviewId, setEditingReviewId] = useState("");
   const [form, setForm] = useState(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
 
   useEffect(() => {
-    getReviews(accessToken).then(setReviews).catch(() => setReviews([]));
+    setIsLoading(true);
+    getReviews(accessToken)
+      .then(setReviews)
+      .catch(() => setReviews([]))
+      .finally(() => setIsLoading(false));
   }, [accessToken]);
 
   const resetForm = () => {
@@ -67,6 +74,8 @@ function ReviewsPage() {
   };
 
   const handleDelete = async (reviewId) => {
+    if (busyId) return;
+
     const accepted = await confirm({
       title: t("deleteReviewTitle"),
       message: t("deleteReviewConfirm"),
@@ -79,12 +88,15 @@ function ReviewsPage() {
       return;
     }
 
+    setBusyId(reviewId);
     try {
       await deleteReview(accessToken, reviewId);
       setReviews((current) => current.filter((review) => review._id !== reviewId));
       notify({ type: "success", message: t("reviewDeletedSuccess") });
     } catch (error) {
       notify({ type: "error", message: error.message || t("couldNotDeleteReview") });
+    } finally {
+      setBusyId("");
     }
   };
 
@@ -105,7 +117,11 @@ function ReviewsPage() {
             <span>{t("rating")}</span>
             <span>{t("actions")}</span>
           </div>
-          {!reviews.length ? <div className="admin-table__empty">{t("noDataFound")}</div> : null}
+          {isLoading ? (
+            <AdminLoading variant="table" label={t("loadingReviews")} count={5} />
+          ) : !reviews.length ? (
+            <div className="admin-table__empty">{t("noDataFound")}</div>
+          ) : null}
           {reviews.map((review) => (
             <article key={review._id} className="admin-table__row admin-table__row--review">
               <div className="admin-row-copy">
@@ -126,6 +142,8 @@ function ReviewsPage() {
                   type="button"
                   className="admin-button admin-button--ghost admin-button--danger"
                   onClick={() => handleDelete(review._id)}
+                  disabled={Boolean(busyId)}
+                  aria-busy={busyId === review._id}
                 >
                   {t("delete")}
                 </button>

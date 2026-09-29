@@ -2,16 +2,20 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { mediaUrl } from "../api/client";
 import { applyCoupon, clearCart, removeCartItem, removeCoupon, updateCartItem } from "../api/cart";
+import { LoadingState } from "../components/LoadingState";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
 import { useShop } from "../context/ShopContext";
 
 function CartPage() {
   const { t } = useLanguage();
-  const { accessToken, cart, isAuthenticated, setCart } = useShop();
+  const { accessToken, cart, isAuthenticated, isSessionLoading, setCart } = useShop();
   const { notify } = useNotifications();
   const [couponCode, setCouponCode] = useState("");
   const [message, setMessage] = useState("");
+  // Keyed by intent so each control only shows busy for its own request, and a
+  // rapid double-click on qty +/- cannot stack two updates for the same line.
+  const [busyAction, setBusyAction] = useState("");
 
   if (!isAuthenticated) {
     return (
@@ -25,50 +29,58 @@ function CartPage() {
 
   const items = cart?.items || [];
   const hasOutOfStockItems = items.some((item) => Number(item.productId?.stock || 0) <= 0);
+  const isCartBusy = Boolean(busyAction);
 
-  const handleQuantity = async (itemId, quantity) => {
+  const runCartAction = async (key, action, onErrorKey) => {
+    if (busyAction) {
+      return;
+    }
+
+    setBusyAction(key);
+
     try {
+      await action();
+    } catch (error) {
+      setMessage(error.message);
+      notify({ type: "error", message: error.message || t(onErrorKey) });
+    } finally {
+      setBusyAction("");
+    }
+  };
+
+  const handleQuantity = (itemId, quantity) =>
+    runCartAction(`qty:${itemId}`, async () => {
       const updatedCart = await updateCartItem(accessToken, itemId, { quantity });
       setCart(updatedCart);
-    } catch (error) {
-      setMessage(error.message);
-      notify({ type: "error", message: error.message || t("couldNotUpdateCartQuantity") });
-    }
-  };
+    }, "couldNotUpdateCartQuantity");
 
-  const handleRemove = async (itemId) => {
-    try {
+  const handleRemove = (itemId) =>
+    runCartAction(`remove:${itemId}`, async () => {
       const updatedCart = await removeCartItem(accessToken, itemId);
       setCart(updatedCart);
-    } catch (error) {
-      setMessage(error.message);
-      notify({ type: "error", message: error.message || t("couldNotRemoveCartItem") });
-    }
-  };
+    }, "couldNotRemoveCartItem");
 
-  const handleApplyCoupon = async () => {
-    try {
+  const handleApplyCoupon = () =>
+    runCartAction("coupon", async () => {
       const updatedCart = await applyCoupon(accessToken, { code: couponCode, subtotal: Number(cart?.subtotal || 0) });
       setCart(updatedCart);
       setMessage(t("couponAppliedSuccess"));
       notify({ type: "success", message: t("couponAppliedSuccess") });
-    } catch (error) {
-      setMessage(error.message);
-      notify({ type: "error", message: error.message || t("couponApplyError") });
-    }
-  };
+    }, "couponApplyError");
 
-  const handleClearCart = async () => {
-    try {
+  const handleClearCart = () =>
+    runCartAction("clear", async () => {
       const updatedCart = await clearCart(accessToken);
       setCart(updatedCart);
       setMessage(t("cartClearedSuccess"));
       notify({ type: "success", message: t("cartClearedSuccess") });
-    } catch (error) {
-      setMessage(error.message);
-      notify({ type: "error", message: error.message || t("cartClearError") });
-    }
-  };
+    }, "cartClearError");
+
+  const handleRemoveCoupon = () =>
+    runCartAction("removeCoupon", async () => {
+      const updatedCart = await removeCoupon(accessToken);
+      setCart(updatedCart);
+    }, "couldNotRemoveCoupon");
 
   return (
     <section className="cart-panel cart-panel--compact">
@@ -78,7 +90,9 @@ function CartPage() {
         <p>{t("cartReviewCopy")}</p>
       </div>
 
-      {!items.length ? (
+      {isSessionLoading ? (
+        <LoadingState label={t("loadingCart")} />
+      ) : !items.length ? (
         <div className="empty-panel">
           <p>{t("cartEmpty")}</p>
           <Link to="/best-sellers" className="solid-button">{t("exploreProducts")}</Link>
@@ -88,7 +102,15 @@ function CartPage() {
           <div className="cart-list">
             <div className="cart-list__actions">
               <Link to="/products" className="ghost-button cart-toolbar-button">{t("continueShopping")}</Link>
-              <button type="button" className="ghost-button cart-toolbar-button" onClick={handleClearCart}>{t("clearCart")}</button>
+              <button
+                type="button"
+                className="ghost-button cart-toolbar-button"
+                onClick={handleClearCart}
+                disabled={busyAction === "clear"}
+                aria-busy={busyAction === "clear"}
+              >
+                {busyAction === "clear" ? "Clearing..." : t("clearCart")}
+              </button>
             </div>
 
             {items.map((item) => (
@@ -113,12 +135,20 @@ function CartPage() {
                 </div>
 
                 <div className="qty-picker">
-                  <button type="button" onClick={() => handleQuantity(item._id, Math.max(1, item.quantity - 1))}>-</button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuantity(item._id, Math.max(1, item.quantity - 1))}
+                    disabled={isCartBusy}
+                    aria-busy={busyAction === `qty:${item._id}`}
+                  >
+                    {busyAction === `qty:${item._id}` ? <span className="mini-spinner" /> : "-"}
+                  </button>
                   <span>{item.quantity}</span>
                   <button
                     type="button"
                     onClick={() => handleQuantity(item._id, item.quantity + 1)}
-                    disabled={item.quantity >= Number(item.productId?.stock || 0)}
+                    disabled={isCartBusy || item.quantity >= Number(item.productId?.stock || 0)}
+                    aria-busy={busyAction === `qty:${item._id}`}
                   >
                     +
                   </button>
@@ -126,8 +156,14 @@ function CartPage() {
 
                 <strong className="cart-line-total">AED {(item.unitPrice * item.quantity).toFixed(2)}</strong>
 
-                <button type="button" className="ghost-button cart-remove-button" onClick={() => handleRemove(item._id)}>
-                  {t("remove")}
+                <button
+                  type="button"
+                  className="ghost-button cart-remove-button"
+                  onClick={() => handleRemove(item._id)}
+                  disabled={isCartBusy}
+                  aria-busy={busyAction === `remove:${item._id}`}
+                >
+                  {busyAction === `remove:${item._id}` ? "Removing..." : t("remove")}
                 </button>
               </article>
             ))}
@@ -136,23 +172,30 @@ function CartPage() {
           <aside className="cart-summary">
             <h3>{t("orderSummary")}</h3>
             <div className="coupon-box">
-              <input value={couponCode} onChange={(event) => setCouponCode(event.target.value)} placeholder={t("couponCode")} />
-              <button type="button" className="ghost-button" onClick={handleApplyCoupon}>{t("apply")}</button>
+              <input
+                value={couponCode}
+                onChange={(event) => setCouponCode(event.target.value)}
+                placeholder={t("couponCode")}
+                disabled={isCartBusy}
+              />
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleApplyCoupon}
+                disabled={isCartBusy || !couponCode.trim()}
+                aria-busy={busyAction === "coupon"}
+              >
+                {busyAction === "coupon" ? "Applying..." : t("apply")}
+              </button>
               {cart?.couponCode ? (
                 <button
                   type="button"
                   className="ghost-button"
-                  onClick={async () => {
-                    try {
-                      const updatedCart = await removeCoupon(accessToken);
-                      setCart(updatedCart);
-                    } catch (error) {
-                      setMessage(error.message);
-                      notify({ type: "error", message: error.message || t("couldNotRemoveCoupon") });
-                    }
-                  }}
+                  onClick={handleRemoveCoupon}
+                  disabled={isCartBusy}
+                  aria-busy={busyAction === "removeCoupon"}
                 >
-                  {t("removeCoupon")}
+                  {busyAction === "removeCoupon" ? "Removing..." : t("removeCoupon")}
                 </button>
               ) : null}
             </div>
@@ -163,11 +206,13 @@ function CartPage() {
             {hasOutOfStockItems ? (
               <p className="stock-note stock-note--danger">{t("removeOutOfStockBeforeCheckout")}</p>
             ) : null}
+            {isCartBusy ? <LoadingState compact label={t("savingBasket")} /> : null}
             <Link
-              to={hasOutOfStockItems ? "#" : "/checkout"}
-              className={`solid-button cart-link-button ${hasOutOfStockItems ? "is-disabled" : ""}`}
+              to={hasOutOfStockItems || isCartBusy ? "#" : "/checkout"}
+              className={`solid-button cart-link-button ${hasOutOfStockItems || isCartBusy ? "is-disabled" : ""}`}
+              aria-disabled={hasOutOfStockItems || isCartBusy}
               onClick={(event) => {
-                if (hasOutOfStockItems) {
+                if (hasOutOfStockItems || isCartBusy) {
                   event.preventDefault();
                 }
               }}

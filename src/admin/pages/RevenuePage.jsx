@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getRevenueRecords } from "../api/admin";
+import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 
@@ -7,13 +8,14 @@ function RevenuePage() {
   const { accessToken } = useAdmin();
   const { t } = useLanguage();
   const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    setIsLoading(true);
     getRevenueRecords(accessToken)
       .then((data) => setRecords(data))
       .catch(() => setRecords([]))
-      .finally(() => setLoading(false));
+      .finally(() => setIsLoading(false));
   }, [accessToken]);
 
   const summary = useMemo(
@@ -36,8 +38,12 @@ function RevenuePage() {
     [records],
   );
 
-  if (loading) {
-    return <div className="admin-panel">{t("loadingRevenue")}</div>;
+  if (isLoading) {
+    return (
+      <div className="admin-panel">
+        <AdminLoading variant="table" label={t("loadingRevenue")} count={5} />
+      </div>
+    );
   }
 
   return (
@@ -91,12 +97,8 @@ function RevenuePage() {
                 <strong>{record.type === "recognized" ? "+" : "-"}AED {Number(record.amount || 0).toFixed(2)}</strong>
                 <p>
                   {record.type === "recognized"
-                    ? record.paymentMethod === "stripe"
-                      ? t("revenueRecordedStripe")
-                      : t("revenueRecordedCod")
-                    : record.paymentMethod === "stripe"
-                      ? t("revenueRemovedStripe")
-                      : t("revenueRemovedCod")}
+                    ? t("revenueRecordedStripe")
+                    : t("revenueRemovedStripe")}
                 </p>
               </span>
             </article>

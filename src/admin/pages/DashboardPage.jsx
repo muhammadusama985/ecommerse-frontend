@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getDashboard } from "../api/admin";
+import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 
@@ -7,10 +8,19 @@ function DashboardPage() {
   const { accessToken } = useAdmin();
   const { t } = useLanguage();
   const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    getDashboard(accessToken).then(setData).catch(() => setData(null));
+    setIsLoading(true);
+    getDashboard(accessToken)
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setIsLoading(false));
   }, [accessToken]);
+
+  if (isLoading) {
+    return <AdminLoading variant="stats" label={t("loadingDashboard")} count={4} />;
+  }
 
   if (!data) {
     return <div className="admin-panel">{t("loadingDashboard")}</div>;
@@ -43,11 +53,6 @@ function DashboardPage() {
           <span>{t("stripeRevenue")}</span>
           <strong>AED {Number(data.stripeRevenue || 0).toFixed(2)}</strong>
           <small className="stat-card__meta">{t("revenueFromOnlinePayments")}</small>
-        </article>
-        <article className="stat-card">
-          <span>{t("codRevenue")}</span>
-          <strong>AED {Number(data.codRevenue || 0).toFixed(2)}</strong>
-          <small className="stat-card__meta">{t("revenueFromDeliveredCodOrders")}</small>
         </article>
         <article className="stat-card stat-card--danger">
           <span>{t("cancelledOrders")}</span>

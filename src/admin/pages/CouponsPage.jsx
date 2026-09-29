@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createCoupon, deleteCoupon, getCoupons, updateCoupon } from "../api/admin";
+import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -20,9 +21,15 @@ function CouponsPage() {
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingCouponId, setEditingCouponId] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
 
   useEffect(() => {
-    getCoupons(accessToken).then(setCoupons).catch(() => setCoupons([]));
+    setIsLoading(true);
+    getCoupons(accessToken)
+      .then(setCoupons)
+      .catch(() => setCoupons([]))
+      .finally(() => setIsLoading(false));
   }, [accessToken]);
 
   const resetForm = () => {
@@ -75,6 +82,8 @@ function CouponsPage() {
   };
 
   const handleDelete = async (couponId) => {
+    if (busyId) return;
+
     const accepted = await confirm({
       title: t("deleteCouponTitle"),
       message: t("deleteCouponConfirm"),
@@ -84,9 +93,14 @@ function CouponsPage() {
     });
     if (!accepted) return;
 
-    await deleteCoupon(accessToken, couponId);
-    setCoupons((current) => current.filter((coupon) => coupon._id !== couponId));
-    notify({ type: "success", message: t("couponRemovedSuccess") });
+    setBusyId(couponId);
+    try {
+      await deleteCoupon(accessToken, couponId);
+      setCoupons((current) => current.filter((coupon) => coupon._id !== couponId));
+      notify({ type: "success", message: t("couponRemovedSuccess") });
+    } finally {
+      setBusyId("");
+    }
   };
 
   return (
@@ -109,7 +123,11 @@ function CouponsPage() {
             <span>{t("expiresAtLabel")}</span>
             <span>{t("actions")}</span>
           </div>
-          {!coupons.length ? <div className="admin-table__empty">{t("noDataFound")}</div> : null}
+          {isLoading ? (
+            <AdminLoading variant="table" label={t("loadingCoupons")} count={5} />
+          ) : !coupons.length ? (
+            <div className="admin-table__empty">{t("noDataFound")}</div>
+          ) : null}
           {coupons.map((coupon) => (
             <article key={coupon._id} className="admin-table__row admin-table__row--coupon">
               <div className="admin-row-copy">
@@ -129,6 +147,8 @@ function CouponsPage() {
                   type="button"
                   className="admin-button admin-button--ghost admin-button--danger"
                   onClick={() => handleDelete(coupon._id)}
+                  disabled={Boolean(busyId)}
+                  aria-busy={busyId === coupon._id}
                 >
                   {t("delete")}
                 </button>

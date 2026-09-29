@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getSettings, updateSetting } from "../api/admin";
+import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -27,9 +28,14 @@ function SettingsPage() {
     ARAMEX_BASE_URL: "https://ws.uat.aramex.net",
   });
   const [isSavingAramex, setIsSavingAramex] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    getSettings(accessToken).then(setSettings).catch(() => setSettings([]));
+    setIsLoading(true);
+    getSettings(accessToken)
+      .then(setSettings)
+      .catch(() => setSettings([]))
+      .finally(() => setIsLoading(false));
   }, [accessToken]);
 
   // Map backend env keys to the form state
@@ -258,7 +264,11 @@ function SettingsPage() {
             <span>{t("value")}</span>
             <span>{t("actions")}</span>
           </div>
-          {!settings.length ? <div className="admin-table__empty">{t("noDataFound")}</div> : null}
+          {isLoading ? (
+            <AdminLoading variant="table" label={t("loadingSettings")} count={5} />
+          ) : !settings.length ? (
+            <div className="admin-table__empty">{t("noDataFound")}</div>
+          ) : null}
           {settings
             .filter((setting) => !setting.key.startsWith("ARAMEX_"))
             .map((setting) => (

@@ -624,6 +624,146 @@ textarea {
   border-bottom: 1px solid #efe6de;
 }
 
+/* --- Loading feedback ---------------------------------------------------- */
+/* Admin lists and forms are all async, so every mutation disables its control
+   and every list shows a skeleton instead of an empty table. */
+
+.admin-loading {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 46px 20px;
+  color: var(--muted);
+  font-weight: 600;
+  text-align: center;
+}
+
+.admin-spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid rgba(235, 77, 143, 0.16);
+  border-top-color: var(--accent);
+  animation: admin-spin 0.75s linear infinite;
+}
+
+.admin-spinner--sm {
+  width: 15px;
+  height: 15px;
+  border-width: 2px;
+}
+
+.admin-spinner--lg {
+  width: 40px;
+  height: 40px;
+  border-width: 4px;
+}
+
+@keyframes admin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.admin-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.admin-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: rgba(117, 102, 95, 0.1);
+}
+
+.admin-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  animation: admin-skeleton-sweep 1.4s infinite;
+}
+
+@keyframes admin-skeleton-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.admin-skeleton-rows {
+  display: block;
+}
+
+.admin-skeleton-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1.8fr) minmax(0, 0.9fr) minmax(0, 0.7fr) minmax(86px, 0.7fr);
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-bottom: 1px solid #efe6de;
+}
+
+.admin-skeleton-row > div {
+  height: 13px;
+}
+
+.admin-skeleton-row > div:first-child {
+  height: 40px;
+  width: 40px;
+  border-radius: 12px;
+}
+
+.admin-skeleton-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.admin-skeleton-stat {
+  height: 92px;
+  border-radius: var(--radius-lg);
+}
+
+.admin-skeleton-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.admin-skeleton-card {
+  height: 150px;
+  border-radius: var(--radius-lg);
+}
+
+[aria-busy="true"] {
+  cursor: progress;
+}
+
+.admin-button:disabled,
+.admin-button--primary:disabled,
+.admin-button--secondary:disabled,
+.admin-button--ghost:disabled,
+.admin-button--danger:disabled,
+.admin-button--danger-solid:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-spinner,
+  .admin-skeleton::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
+
 .admin-table__row--products {
   grid-template-columns: 52px minmax(0, 1.8fr) minmax(0, 0.85fr) minmax(0, 0.75fr) minmax(0, 0.65fr) minmax(86px, 0.7fr);
 }
@@ -1028,11 +1168,6 @@ textarea {
   color: white;
 }
 
-.payment-method.cod {
-  background: #f59e0b;
-  color: white;
-}
-
 .payment-status.paid {
   background: #10b981;
   color: white;
@@ -1151,25 +1286,6 @@ textarea {
 .payment-note--success {
   background: rgba(16, 185, 129, 0.15);
   color: #059669;
-}
-
-.payment-note--warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: #d97706;
-}
-
-.payment-update-hint {
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: 10px;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.payment-update-hint p {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #92400e;
 }
 
 /* Order Helper Text */

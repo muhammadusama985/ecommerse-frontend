@@ -19,9 +19,17 @@ function RegisterPage() {
     password: "",
   });
   const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage("");
 
     try {
       const session = await register(form);
@@ -30,6 +38,8 @@ function RegisterPage() {
     } catch (error) {
       setMessage(error.message);
       notify({ type: "error", message: error.message || t("registrationFailedGeneric") });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -46,6 +56,7 @@ function RegisterPage() {
             value={form.firstName}
             onChange={(event) => setForm({ ...form, firstName: event.target.value })}
             required
+            disabled={isSubmitting}
           />
         </label>
         <label>
@@ -55,6 +66,7 @@ function RegisterPage() {
             value={form.lastName}
             onChange={(event) => setForm({ ...form, lastName: event.target.value })}
             required
+            disabled={isSubmitting}
           />
         </label>
         <label>
@@ -65,6 +77,7 @@ function RegisterPage() {
             value={form.email}
             onChange={(event) => setForm({ ...form, email: event.target.value })}
             required
+            disabled={isSubmitting}
           />
         </label>
         <label>
@@ -73,6 +86,7 @@ function RegisterPage() {
             placeholder={t("phone")}
             value={form.phone}
             onChange={(event) => setForm({ ...form, phone: event.target.value })}
+            disabled={isSubmitting}
           />
         </label>
         <label className="auth-form__wide">
@@ -83,11 +97,17 @@ function RegisterPage() {
             value={form.password}
             onChange={(event) => setForm({ ...form, password: event.target.value })}
             required
+            disabled={isSubmitting}
           />
         </label>
         {message ? <p className="feedback-note auth-form__wide">{message}</p> : null}
-        <button type="submit" className="solid-button solid-button--large auth-form__wide auth-form__submit">
-          {t("createAccount")}
+        <button
+          type="submit"
+          className="solid-button solid-button--large auth-form__wide auth-form__submit"
+          disabled={isSubmitting}
+          aria-busy={isSubmitting}
+        >
+          {isSubmitting ? "Creating account..." : t("createAccount")}
         </button>
         <div className="auth-form__wide auth-form__wide--centered">
           <SocialAuthButtons

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cancelOrder, getMyOrders, requestReturn } from "../api/orders";
-import { mediaUrl } from "../api/client";
+import { LoadingState } from "../components/LoadingState";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
 import { useShop } from "../context/ShopContext";
@@ -13,10 +13,6 @@ function ReturnModal({ order, onClose, onSuccess }) {
   const [returnForm, setReturnForm] = useState({
     returnReason: "",
     returnDetails: "",
-    refundAccountHolderName: "",
-    refundBankName: "",
-    refundAccountNumber: "",
-    refundIban: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -30,14 +26,6 @@ function ReturnModal({ order, onClose, onSuccess }) {
     if (!returnForm.returnReason.trim()) {
       setMessage("Please provide a return reason.");
       return;
-    }
-
-    // Validate bank details for COD
-    if (order.paymentMethod === "cod") {
-      if (!returnForm.refundAccountHolderName.trim() || !returnForm.refundBankName.trim() || !returnForm.refundAccountNumber.trim()) {
-        setMessage("For Cash on Delivery orders, please provide bank account details for refund.");
-        return;
-      }
     }
 
     setIsSubmitting(true);
@@ -98,60 +86,20 @@ function ReturnModal({ order, onClose, onSuccess }) {
             />
           </div>
 
-          {order.paymentMethod === "cod" && (
-            <div className="order-detail__section">
-              <strong>Refund Bank Account *</strong>
-              <p className="order-card__reason">
-                For Cash on Delivery orders, please provide your bank details so we can process your refund.
-              </p>
-              <div className="return-bank-form">
-                <label>
-                  Account Holder Name
-                  <input
-                    type="text"
-                    value={returnForm.refundAccountHolderName}
-                    onChange={(event) => setReturnForm({ ...returnForm, refundAccountHolderName: event.target.value })}
-                    required
-                  />
-                </label>
-                <label>
-                  Bank Name
-                  <input
-                    type="text"
-                    value={returnForm.refundBankName}
-                    onChange={(event) => setReturnForm({ ...returnForm, refundBankName: event.target.value })}
-                    required
-                  />
-                </label>
-                <label>
-                  Account Number
-                  <input
-                    type="text"
-                    value={returnForm.refundAccountNumber}
-                    onChange={(event) => setReturnForm({ ...returnForm, refundAccountNumber: event.target.value })}
-                    required
-                  />
-                </label>
-                <label>
-                  IBAN (Optional)
-                  <input
-                    type="text"
-                    value={returnForm.refundIban}
-                    onChange={(event) => setReturnForm({ ...returnForm, refundIban: event.target.value })}
-                  />
-                </label>
-              </div>
-            </div>
-          )}
+          <div className="order-detail__section">
+            <strong>Refund Method</strong>
+            <p className="order-card__reason">
+              For Stripe payments, the refund will be automatically processed back to your original payment method.
+            </p>
+          </div>
 
-          {order.paymentMethod === "stripe" && (
-            <div className="order-detail__section">
-              <strong>Refund Method</strong>
-              <p className="order-card__reason">
-                For Stripe payments, the refund will be automatically processed back to your original payment method.
-              </p>
-            </div>
-          )}
+          <div className="order-detail__section">
+            <strong>What happens next</strong>
+            <p className="order-card__reason">
+              Your request needs admin approval. Once it is approved we arrange an Aramex pickup from your delivery
+              address and bring the parcel back to our Al Ain store.
+            </p>
+          </div>
 
           {message ? <p className="feedback-note">{message}</p> : null}
 
@@ -177,6 +125,7 @@ function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [message, setMessage] = useState("");
   const [busyOrderId, setBusyOrderId] = useState("");
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showReturnModal, setShowReturnModal] = useState(false);
 
@@ -192,12 +141,27 @@ function OrdersPage() {
       return;
     }
 
+    let isCancelled = false;
+    // Without this the page renders the "no orders" empty panel for the whole
+    // request, which reads as "your history is gone".
+    setIsLoadingOrders(true);
+
     getMyOrders(accessToken)
-      .then((result) => setOrders(result))
+      .then((result) => {
+        if (!isCancelled) setOrders(result);
+      })
       .catch((error) => {
+        if (isCancelled) return;
         setMessage(error.message);
         notify({ type: "error", message: error.message });
+      })
+      .finally(() => {
+        if (!isCancelled) setIsLoadingOrders(false);
       });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [accessToken, notify]);
 
   const handleCancelOrder = async (event, orderId) => {
@@ -260,7 +224,9 @@ function OrdersPage() {
 
       {message ? <p className="feedback-note">{message}</p> : null}
 
-      {!orders.length ? (
+      {isLoadingOrders ? (
+        <LoadingState variant="rows" label={t("loadingOrders")} count={4} />
+      ) : !orders.length ? (
         <div className="empty-panel">
           <p>{t("noOrders")}</p>
           <Link to="/best-sellers" className="solid-button empty-panel__button">
@@ -460,7 +426,7 @@ function OrdersPage() {
               canRequestReturn(selectedOrder) && (
                 <div className="order-detail__section order-detail__section--return-action">
                   <strong>Need to Return?</strong>
-                  <p>If you need to return this order, you can request a return.</p>
+                  <p>Returns can be requested once your order is delivered. Tell us the reason and our team will review it.</p>
                   <button
                     type="button"
                     className="solid-button solid-button--secondary"

@@ -11,9 +11,16 @@ function LoginPage() {
   const { setSession } = useAdmin();
   const { notify } = useAdminNotifications();
   const [form, setForm] = useState({ email: "", password: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
 
     try {
       const session = await login(form, "admin");
@@ -24,6 +31,8 @@ function LoginPage() {
       navigate("/admin");
     } catch (error) {
       notify({ type: "error", message: error.message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -34,7 +43,7 @@ function LoginPage() {
         <h1>{t("loginToDashboard")}</h1>
         <p>{t("adminLoginCopy")}</p>
 
-        <form className="admin-form" onSubmit={handleSubmit}>
+        <form className="admin-form" onSubmit={handleSubmit} aria-busy={isSubmitting}>
           <label>
             {t("email")}
             <input
@@ -42,6 +51,7 @@ function LoginPage() {
               value={form.email}
               onChange={(event) => setForm({ ...form, email: event.target.value })}
               required
+              disabled={isSubmitting}
             />
           </label>
           <label>
@@ -51,10 +61,11 @@ function LoginPage() {
               value={form.password}
               onChange={(event) => setForm({ ...form, password: event.target.value })}
               required
+              disabled={isSubmitting}
             />
           </label>
-          <button type="submit" className="admin-button">
-            {t("login")}
+          <button type="submit" className="admin-button" disabled={isSubmitting}>
+            {isSubmitting ? "Signing in..." : t("login")}
           </button>
           <button type="button" className="admin-button admin-button--ghost" onClick={toggleLanguage}>
             {t("language")}

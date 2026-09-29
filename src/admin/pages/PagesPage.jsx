@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPage, deletePage, getPages } from "../api/admin";
+import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -17,9 +18,15 @@ function PagesPage() {
   const [form, setForm] = useState(initialForm);
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
 
   useEffect(() => {
-    getPages(accessToken).then(setPages).catch(() => setPages([]));
+    setIsLoading(true);
+    getPages(accessToken)
+      .then(setPages)
+      .catch(() => setPages([]))
+      .finally(() => setIsLoading(false));
   }, [accessToken]);
 
   const resetForm = () => {
@@ -44,6 +51,8 @@ function PagesPage() {
   };
 
   const handleDelete = async (pageId) => {
+    if (busyId) return;
+
     const accepted = await confirm({
       title: t("deletePageTitle"),
       message: t("deletePageConfirm"),
@@ -53,9 +62,14 @@ function PagesPage() {
     });
     if (!accepted) return;
 
-    await deletePage(accessToken, pageId);
-    setPages((current) => current.filter((page) => page._id !== pageId));
-    notify({ type: "success", message: t("pageRemovedSuccess") });
+    setBusyId(pageId);
+    try {
+      await deletePage(accessToken, pageId);
+      setPages((current) => current.filter((page) => page._id !== pageId));
+      notify({ type: "success", message: t("pageRemovedSuccess") });
+    } finally {
+      setBusyId("");
+    }
   };
 
   return (
@@ -77,7 +91,11 @@ function PagesPage() {
             <span>{t("status")}</span>
             <span>{t("actions")}</span>
           </div>
-          {!pages.length ? <div className="admin-table__empty">{t("noDataFound")}</div> : null}
+          {isLoading ? (
+            <AdminLoading variant="table" label={t("loadingPages")} count={5} />
+          ) : !pages.length ? (
+            <div className="admin-table__empty">{t("noDataFound")}</div>
+          ) : null}
           {pages.map((page) => (
             <article key={page._id} className="admin-table__row admin-table__row--page">
               <div className="admin-row-copy">
@@ -87,7 +105,13 @@ function PagesPage() {
               <span>{page.slug}</span>
               <span>{page.isPublished ? t("published") : t("draft")}</span>
               <div className="admin-actions">
-                <button type="button" className="admin-button admin-button--ghost admin-button--danger" onClick={() => handleDelete(page._id)}>
+                <button
+                  type="button"
+                  className="admin-button admin-button--ghost admin-button--danger"
+                  onClick={() => handleDelete(page._id)}
+                  disabled={Boolean(busyId)}
+                  aria-busy={busyId === page._id}
+                >
                   {t("delete")}
                 </button>
               </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { mediaUrl } from "../api/client";
 import { createCategory, deleteCategory, getCategories, updateCategory, uploadAdminImage } from "../api/admin";
+import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -18,9 +19,15 @@ function CategoriesPage() {
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
 
   useEffect(() => {
-    getCategories(accessToken).then(setCategories).catch(() => setCategories([]));
+    setIsLoading(true);
+    getCategories(accessToken)
+      .then(setCategories)
+      .catch(() => setCategories([]))
+      .finally(() => setIsLoading(false));
   }, [accessToken]);
 
   useEffect(() => {
@@ -115,7 +122,11 @@ function CategoriesPage() {
             <span>{t("sort")}</span>
             <span>{t("actions")}</span>
           </div>
-          {!categories.length ? <div className="admin-table__empty">{t("noDataFound")}</div> : null}
+          {isLoading ? (
+            <AdminLoading variant="table" label={t("loadingCategories")} count={5} />
+          ) : !categories.length ? (
+            <div className="admin-table__empty">{t("noDataFound")}</div>
+          ) : null}
           {categories.map((category) => (
             <article key={category._id} className="admin-table__row admin-table__row--categories">
               {category.image ? (
@@ -137,6 +148,8 @@ function CategoriesPage() {
                   type="button"
                   className="admin-button admin-button--ghost admin-button--danger"
                   onClick={async () => {
+                    if (busyId) return;
+
                     const accepted = await confirm({
                       title: t("deleteCategoryTitle"),
                       message: t("deleteCategoryConfirm"),
@@ -146,10 +159,17 @@ function CategoriesPage() {
                     });
                     if (!accepted) return;
 
-                    await deleteCategory(accessToken, category._id);
-                    setCategories((current) => current.filter((item) => item._id !== category._id));
-                    notify({ type: "success", message: t("categoryRemovedSuccess") });
+                    setBusyId(category._id);
+                    try {
+                      await deleteCategory(accessToken, category._id);
+                      setCategories((current) => current.filter((item) => item._id !== category._id));
+                      notify({ type: "success", message: t("categoryRemovedSuccess") });
+                    } finally {
+                      setBusyId("");
+                    }
                   }}
+                  disabled={Boolean(busyId)}
+                  aria-busy={busyId === category._id}
                 >
                   {t("delete")}
                 </button>

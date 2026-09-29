@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getPage } from "../api/content";
+import { LoadingState } from "../components/LoadingState";
 import { useLanguage } from "../context/LanguageContext";
 import { translateContentPage } from "../lib/contentTranslation";
 
@@ -8,12 +9,33 @@ function ContentPage() {
   const { t, language } = useLanguage();
   const { slug } = useParams();
   const [page, setPage] = useState(null);
+  const [status, setStatus] = useState("loading");
 
   useEffect(() => {
+    let isCancelled = false;
+    setPage(null);
+    setStatus("loading");
+
     getPage(slug)
-      .then(async (item) => setPage(await translateContentPage(language, item)))
-      .catch(() => setPage(null));
+      .then(async (item) => {
+        if (isCancelled) return;
+        setPage(await translateContentPage(language, item));
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (isCancelled) return;
+        setPage(null);
+        setStatus("error");
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [slug, language]);
+
+  if (status === "loading") {
+    return <LoadingState label={t("loadingGeneric")} />;
+  }
 
   if (!page) {
     return <section className="empty-panel">{t("pageNotFound")}</section>;

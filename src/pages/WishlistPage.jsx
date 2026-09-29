@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { removeWishlistItem } from "../api/users";
+import { LoadingState } from "../components/LoadingState";
 import { ProductCard } from "../components/ProductCard";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
@@ -7,8 +9,9 @@ import { useShop } from "../context/ShopContext";
 
 function WishlistPage() {
   const { t } = useLanguage();
-  const { accessToken, wishlist, isAuthenticated, setWishlist } = useShop();
+  const { accessToken, wishlist, isAuthenticated, isSessionLoading, setWishlist } = useShop();
   const { notify } = useNotifications();
+  const [busyProductId, setBusyProductId] = useState("");
 
   if (!isAuthenticated) {
     return (
@@ -23,12 +26,20 @@ function WishlistPage() {
   }
 
   const handleRemove = async (productId) => {
+    if (busyProductId) {
+      return;
+    }
+
+    setBusyProductId(productId);
+
     try {
       const nextWishlist = await removeWishlistItem(accessToken, productId);
       setWishlist(nextWishlist);
       notify({ type: "success", message: "Item removed from wishlist." });
     } catch (error) {
       notify({ type: "error", message: error.message || "Could not update wishlist." });
+    } finally {
+      setBusyProductId("");
     }
   };
 
@@ -40,7 +51,9 @@ function WishlistPage() {
         <p>{t("productsBookmarked")}</p>
       </div>
 
-      {!wishlist.length ? (
+      {isSessionLoading ? (
+        <LoadingState variant="skeleton" label={t("loadingWishlist")} count={4} />
+      ) : !wishlist.length ? (
         <div className="empty-panel">
           <p>{t("wishlistEmpty")}</p>
           <Link to="/best-sellers" className="solid-button empty-panel__button">
@@ -52,8 +65,14 @@ function WishlistPage() {
           {wishlist.map((product) => (
             <div key={product._id} className="wishlist-tile">
               <ProductCard product={product} />
-              <button type="button" className="ghost-button wishlist-remove" onClick={() => handleRemove(product._id)}>
-                {t("remove")}
+              <button
+                type="button"
+                className="ghost-button wishlist-remove"
+                onClick={() => handleRemove(product._id)}
+                disabled={Boolean(busyProductId)}
+                aria-busy={busyProductId === product._id}
+              >
+                {busyProductId === product._id ? "Removing..." : t("remove")}
               </button>
             </div>
           ))}

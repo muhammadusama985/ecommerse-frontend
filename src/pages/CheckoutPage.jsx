@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
@@ -22,6 +22,7 @@ function CheckoutView({
   cart,
   clientSecret,
   isCreatingIntent,
+  isLoadingShipping,
   isStripeFormComplete,
   isStripeReady,
   isSubmitting,
@@ -29,21 +30,47 @@ function CheckoutView({
   message,
   onSubmit,
   paymentMethod,
-  shippingAmount,
-  shippingCurrency,
+  quote,
+  retryShipping,
   selectedAddressId,
   setPaymentMethod,
   setSelectedAddressId,
   setStripeFormComplete,
+  shippingState,
   t,
 }) {
-  const checkoutTotal = Number((Number(cart?.total || cart?.subtotal || 0) + Number(shippingAmount || 0)).toFixed(2));
+  // The PaymentIntent is priced server-side with delivery included, so its
+  // breakdown is the single source of truth. Falling back to the cart only
+  // happens before the quote resolves, and the pay button stays disabled then.
+  const subtotal = Number(quote?.subtotal ?? cart?.subtotal ?? 0);
+  const shippingCharge = Number(quote?.shippingAmount ?? 0);
+  const discount = Number(quote?.discountAmount ?? cart?.discountAmount ?? 0);
+  const checkoutTotal = Number(
+    (quote?.totalAmount ?? Number(cart?.total || cart?.subtotal || 0) + Number(shippingAmount || 0)).toFixed(2),
+  );
+  const shippingCurrency = quote?.currency || "AED";
+
+  // Payment is impossible until the delivery charge has been calculated and
+  // folded into the amount, so the button is locked for the whole pricing step.
+  const isShippingPending = shippingState === "loading" || shippingState === "idle";
   const isSubmitDisabled =
     !canCheckout ||
     !selectedAddressId ||
     isSubmitting ||
     isCreatingIntent ||
+    isLoadingShipping ||
+    shippingState !== "ready" ||
     (paymentMethod === "stripe" && (!isStripeReady || !clientSecret || !isStripeFormComplete));
+
+  const submitLabel = isSubmitting
+    ? "Processing payment..."
+    : isLoadingShipping || shippingState === "idle"
+      ? t("calculatingDelivery")
+      : isCreatingIntent
+        ? "Preparing secure payment..."
+        : shippingState === "error"
+          ? "Delivery charge unavailable"
+          : "Pay & Place Order";
 
   return (
     <section className="checkout-page">
@@ -103,21 +130,57 @@ function CheckoutView({
                 </div>
               </div>
 
-              <div className="checkout-payment-list">
-                <label className="address-card">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="cod"
-                    checked={paymentMethod === "cod"}
-                    onChange={(event) => setPaymentMethod(event.target.value)}
-                  />
-                  <div>
-                    <strong>{t("cashOnDelivery")}</strong>
-                    <p>{t("codAvailable")}</p>
-                  </div>
-                </label>
+              <div className="shipping-quote" data-state={shippingState}>
+                <div className="shipping-quote__icon" aria-hidden="true">
+                  {shippingState === "ready" ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                  ) : shippingState === "error" ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 8v5M12 16h.01" />
+                    </svg>
+                  ) : (
+                    <span className="mini-spinner" />
+                  )}
+                </div>
+                <div className="shipping-quote__body">
+                  {shippingState === "ready" ? (
+                    <>
+                      <strong>Delivery charges calculated</strong>
+                      <p>
+                        {shippingCharge > 0
+                          ? `AED ${shippingCharge.toFixed(2)} has been added to your total. Your parcel ships from our Al Ain store via Aramex.`
+                          : "Delivery is free for this order. Your parcel ships from our Al Ain store via Aramex."}
+                      </p>
+                    </>
+                  ) : shippingState === "error" ? (
+                    <>
+                      <strong>We could not calculate delivery charges</strong>
+                      <p>
+                        The Aramex rate service did not respond. Checkout is paused so you are never charged an
+                        unconfirmed amount.{" "}
+                        <button type="button" className="link-button" onClick={retryShipping}>
+                          Try again
+                        </button>
+                      </p>
+                    </>
+                  ) : isLoadingShipping ? (
+                    <>
+                      <strong>Calculating delivery charges...</strong>
+                      <p>Asking Aramex for the rate to your address. Payment unlocks once it is added to your total.</p>
+                    </>
+                  ) : (
+                    <>
+                      <strong>Select a delivery address</strong>
+                      <p>We calculate the Aramex delivery charge for your address before you pay.</p>
+                    </>
+                  )}
+                </div>
+              </div>
 
+              <div className="checkout-payment-list">
                 <label className="address-card">
                   <input
                     type="radio"
@@ -130,7 +193,7 @@ function CheckoutView({
                     <strong>{t("stripeCard")}</strong>
                     <p>
                       {isStripeReady
-                        ? "Pay securely with your card using Stripe."
+                        ? "Pay securely with your card using Stripe. Cash on delivery is not available."
                         : "Add a Stripe publishable key to enable card payments."}
                     </p>
                   </div>
@@ -143,13 +206,22 @@ function CheckoutView({
                     <StripePaymentBlock onCompleteChange={setStripeFormComplete} />
                   ) : (
                     <p className="checkout-note">
-                      {isCreatingIntent ? "Preparing secure payment form..." : "Select an address to continue with card payment."}
+                      {isCreatingIntent
+                        ? "Preparing secure payment form..."
+                        : isLoadingShipping
+                          ? "Calculating delivery charges before we open the payment form..."
+                          : "Select an address to continue with card payment."}
                     </p>
                   )
                 ) : (
                   <p className="feedback-note">Stripe publishable key is missing from the web environment.</p>
                 )
               ) : null}
+
+              <p className="checkout-note">
+                Your order is only created once the payment succeeds. Nothing is reserved or charged if the payment fails.
+                Orders ship from our Al Ain store via Aramex straight after payment.
+              </p>
             </div>
 
             {message ? <p className="feedback-note">{message}</p> : null}
@@ -176,15 +248,19 @@ function CheckoutView({
             <div className="checkout-summary__totals">
               <div>
                 <span>{t("subtotal")}</span>
-                <strong>AED {Number(cart?.subtotal || 0).toFixed(2)}</strong>
+                <strong>{shippingCurrency} {subtotal.toFixed(2)}</strong>
               </div>
               <div>
                 <span>{t("discount")}</span>
-                <strong>AED {Number(cart?.discountAmount || 0).toFixed(2)}</strong>
+                <strong>{shippingCurrency} {discount.toFixed(2)}</strong>
               </div>
-              <div>
-                <span>Shipping</span>
-                <strong>{shippingCurrency} {Number(shippingAmount || 0).toFixed(2)}</strong>
+              <div className={isShippingPending ? "is-pending" : ""}>
+                <span>Delivery</span>
+                <strong>
+                  {isShippingPending
+                    ? "Calculating..."
+                    : `${shippingCurrency} ${shippingCharge.toFixed(2)}`}
+                </strong>
               </div>
               <div className="cart-summary__total">
                 <span>{t("total")}</span>
@@ -193,7 +269,7 @@ function CheckoutView({
             </div>
 
             <button type="submit" form="checkout-form" className="solid-button solid-button--large checkout-summary__button" disabled={isSubmitDisabled}>
-              {isSubmitting ? "Processing..." : paymentMethod === "stripe" ? "Pay Now" : t("placeOrder")}
+              {submitLabel}
             </button>
           </aside>
         </div>
@@ -202,49 +278,15 @@ function CheckoutView({
   );
 }
 
+// Fallback shell used while the Stripe form is still being prepared. Checkout is
+// Stripe-only, so this never places an order: it only explains why payment is
+// not available yet.
 function StandardCheckoutContent(props) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const {
-    accessToken,
-    navigate,
-    notify,
-    paymentMethod,
-    refreshSessionData,
-    selectedAddressId,
-    setCart,
-    setMessage,
-  } = props;
-
-  const handleSubmit = async (event) => {
+  const handleBlockedSubmit = (event) => {
     event.preventDefault();
-
-    if (!props.canCheckout || !selectedAddressId) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    setMessage("");
-
-    try {
-      const order = await createOrder(accessToken, {
-        addressId: selectedAddressId,
-        paymentMethod,
-      });
-
-      await refreshSessionData();
-      setCart({ items: [], subtotal: 0, discountAmount: 0, total: 0 });
-      notify({ type: "success", message: `Order ${order.orderNumber} placed successfully.` });
-      navigate("/orders", { state: { successMessage: `Order ${order.orderNumber} placed successfully.` } });
-    } catch (error) {
-      const errorMessage = error.message || "Checkout could not be completed.";
-      setMessage(errorMessage);
-      notify({ type: "error", message: errorMessage });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
-  return <CheckoutView {...props} isSubmitting={isSubmitting} onSubmit={handleSubmit} />;
+  return <CheckoutView {...props} isSubmitting={false} onSubmit={handleBlockedSubmit} />;
 }
 
 function StripeCheckoutContent(props) {
@@ -260,13 +302,17 @@ function StripeCheckoutContent(props) {
     selectedAddressId,
     setCart,
     setMessage,
+    shippingState,
     stripeIntentId,
   } = props;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!props.canCheckout || !selectedAddressId) {
+    // The delivery charge must be known and folded into the amount before any
+    // payment is attempted, otherwise the customer would be charged a total
+    // they never saw.
+    if (!props.canCheckout || !selectedAddressId || shippingState !== "ready") {
       return;
     }
 
@@ -309,9 +355,17 @@ function StripeCheckoutContent(props) {
 
       await refreshSessionData();
       setCart({ items: [], subtotal: 0, discountAmount: 0, total: 0 });
-      notify({ type: "success", message: `Order ${order.orderNumber} placed successfully.` });
-      navigate("/orders", { state: { successMessage: `Order ${order.orderNumber} placed successfully.` } });
+
+      const trackingNumber = order?.trackingNumber;
+      const successMessage = trackingNumber
+        ? `Payment received. Order ${order.orderNumber} placed and shipped via Aramex. Tracking: ${trackingNumber}`
+        : `Payment received. Order ${order.orderNumber} placed and ready to ship.`;
+
+      notify({ type: "success", message: successMessage });
+      navigate("/orders", { state: { successMessage } });
     } catch (error) {
+      // The order only exists once the payment succeeded, so a failure here
+      // leaves the cart and any authorised payment untouched.
       const errorMessage = error.message || "Checkout could not be completed.";
       setMessage(errorMessage);
       notify({ type: "error", message: errorMessage });
@@ -329,14 +383,18 @@ function CheckoutPage() {
   const navigate = useNavigate();
   const { accessToken, cart, user, isAuthenticated, setCart, refreshSessionData } = useShop();
   const [selectedAddressId, setSelectedAddressId] = useState(user?.addresses?.find((item) => item.isDefault)?._id || "");
-  const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [paymentMethod, setPaymentMethod] = useState("stripe");
   const [message, setMessage] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [stripeIntentId, setStripeIntentId] = useState("");
   const [isCreatingIntent, setIsCreatingIntent] = useState(false);
   const [isStripeFormComplete, setStripeFormComplete] = useState(false);
-  const [shippingAmount, setShippingAmount] = useState(0);
-  const [shippingCurrency, setShippingCurrency] = useState("AED");
+  const [isLoadingShipping, setIsLoadingShipping] = useState(false);
+  // "idle" -> no address yet, "loading" -> asking Aramex, "ready" -> the charge
+  // is known and folded into the total, "error" -> the rate call failed.
+  const [shippingState, setShippingState] = useState("idle");
+  const [quote, setQuote] = useState(null);
+  const [shippingAttempt, setShippingAttempt] = useState(0);
   const addresses = user?.addresses || [];
   const items = cart?.items || [];
   const stripePromise = useMemo(() => {
@@ -349,62 +407,72 @@ function CheckoutPage() {
 
   const canCheckout = useMemo(() => Boolean(addresses.length && items.length), [addresses.length, items.length]);
 
+  const retryShipping = useCallback(() => {
+    setShippingAttempt((attempt) => attempt + 1);
+  }, []);
+
+  // Pricing runs strictly in order: Aramex delivery charge first, then the
+  // Stripe PaymentIntent. They used to fire in parallel, which let the customer
+  // reach the pay button while the summary still showed a zero delivery charge
+  // and let the displayed total drift from the amount Stripe actually asked for.
   useEffect(() => {
     let isCancelled = false;
 
-    async function loadShippingRate() {
-      if (!accessToken || !selectedAddressId || !items.length) {
-        setShippingAmount(0);
-        setShippingCurrency("AED");
+    const resetPricing = () => {
+      setClientSecret("");
+      setStripeIntentId("");
+      setStripeFormComplete(false);
+      setIsCreatingIntent(false);
+      setQuote(null);
+    };
+
+    async function priceCheckout() {
+      if (paymentMethod !== "stripe" || !accessToken || !selectedAddressId || !items.length) {
+        resetPricing();
+        setShippingState("idle");
         return;
       }
 
-      try {
-        const quote = await getAramexRate(accessToken, { addressId: selectedAddressId });
-        if (!isCancelled) {
-          setShippingAmount(Number(quote.shippingAmount || 0));
-          setShippingCurrency(quote.currency || "AED");
-        }
-      } catch {
-        if (!isCancelled) {
-          setShippingAmount(0);
-          setShippingCurrency("AED");
-        }
-      }
-    }
-
-    async function setupStripeIntent() {
-      if (
-        paymentMethod !== "stripe" ||
-        !accessToken ||
-        !selectedAddressId ||
-        !items.length
-      ) {
-        setClientSecret("");
-        setStripeIntentId("");
-        setStripeFormComplete(false);
-        return;
-      }
-
-      setIsCreatingIntent(true);
       setMessage("");
+      setIsLoadingShipping(true);
+      setShippingState("loading");
+      resetPricing();
 
       try {
+        // Step 1: delivery charge. A failure here stops the flow on purpose
+        // rather than letting the customer pay an unconfirmed total.
+        await getAramexRate(accessToken, { addressId: selectedAddressId });
+        if (isCancelled) return;
+
+        // Step 2: only now is the payment form worth opening. The rate call
+        // above is the gate; this call re-prices server-side and returns the
+        // exact breakdown the PaymentIntent will be charged.
+        setIsCreatingIntent(true);
         const intent = await createStripePaymentIntent(accessToken, { addressId: selectedAddressId });
-        if (!isCancelled) {
-          setClientSecret(intent.clientSecret || "");
-          setStripeIntentId(intent.paymentIntentId || "");
-          setStripeFormComplete(false);
-        }
+        if (isCancelled) return;
+
+        setClientSecret(intent.clientSecret || "");
+        setStripeIntentId(intent.paymentIntentId || "");
+        setStripeFormComplete(false);
+        setQuote({
+          subtotal: intent.subtotal,
+          shippingAmount: intent.shippingAmount,
+          discountAmount: intent.discountAmount,
+          totalAmount: intent.totalAmount ?? intent.amount,
+          currency: intent.currency || "AED",
+        });
+        // Flipped only once the amount is in hand, so the Delivery row never
+        // flashes a zero charge while the intent is still being created.
+        setIsLoadingShipping(false);
+        setShippingState("ready");
       } catch (error) {
-        if (!isCancelled) {
-          const errorMessage = error.message || "Unable to prepare Stripe payment.";
-          setMessage(errorMessage);
-          setClientSecret("");
-          setStripeIntentId("");
-          setStripeFormComplete(false);
-          notify({ type: "error", message: errorMessage });
-        }
+        if (isCancelled) return;
+        setIsLoadingShipping(false);
+        setShippingState("error");
+        resetPricing();
+        const errorMessage = error.message || "Unable to prepare Stripe payment.";
+        setMessage(errorMessage);
+        notify({ type: "error", message: errorMessage });
       } finally {
         if (!isCancelled) {
           setIsCreatingIntent(false);
@@ -412,13 +480,12 @@ function CheckoutPage() {
       }
     }
 
-    loadShippingRate();
-    setupStripeIntent();
+    priceCheckout();
 
     return () => {
       isCancelled = true;
     };
-  }, [accessToken, items.length, notify, paymentMethod, selectedAddressId]);
+  }, [accessToken, items.length, notify, paymentMethod, selectedAddressId, shippingAttempt]);
 
   if (!isAuthenticated) {
     return (
@@ -439,6 +506,7 @@ function CheckoutPage() {
     cart,
     clientSecret,
     isCreatingIntent,
+    isLoadingShipping,
     isStripeFormComplete,
     isStripeReady: Boolean(stripePromise),
     items,
@@ -446,15 +514,16 @@ function CheckoutPage() {
     navigate,
     notify,
     paymentMethod,
+    quote,
     refreshSessionData,
+    retryShipping,
     selectedAddressId,
     setCart,
     setMessage,
     setPaymentMethod,
     setSelectedAddressId,
     setStripeFormComplete,
-    shippingAmount,
-    shippingCurrency,
+    shippingState,
     stripeIntentId,
     t,
   };

@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { addAddress, removeAddress, updateProfile } from "../api/users";
+import { LoadingState } from "../components/LoadingState";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
 import { useShop } from "../context/ShopContext";
 
 function ProfilePage() {
   const { t } = useLanguage();
-  const { accessToken, user, isAuthenticated, setUser, refreshSessionData } = useShop();
+  const { accessToken, user, isAuthenticated, isSessionLoading, setUser, refreshSessionData } = useShop();
   const { notify } = useNotifications();
   const [profileForm, setProfileForm] = useState({
     firstName: user?.firstName || "",
@@ -27,6 +28,10 @@ function ProfilePage() {
     isDefault: false,
   });
   const [message, setMessage] = useState("");
+  // Separate busy flags so saving the profile never blocks adding an address.
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [busyAddressId, setBusyAddressId] = useState("");
 
   if (!isAuthenticated) {
     return (
@@ -38,8 +43,22 @@ function ProfilePage() {
     );
   }
 
+  // The forms are seeded from the user object, so rendering them before the
+  // profile request resolves would show blank fields and silently overwrite the
+  // customer's details on save.
+  if (isSessionLoading) {
+    return <LoadingState label={t("loadingProfile")} />;
+  }
+
   const handleProfileSubmit = async (event) => {
     event.preventDefault();
+
+    if (isSavingProfile) {
+      return;
+    }
+
+    setIsSavingProfile(true);
+
     try {
       const nextUser = await updateProfile(accessToken, profileForm);
       setUser(nextUser);
@@ -48,11 +67,20 @@ function ProfilePage() {
     } catch (error) {
       setMessage(error.message);
       notify({ type: "error", message: error.message || t("couldNotUpdateProfile") });
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
   const handleAddressSubmit = async (event) => {
     event.preventDefault();
+
+    if (isAddingAddress) {
+      return;
+    }
+
+    setIsAddingAddress(true);
+
     try {
       await addAddress(accessToken, addressForm);
       await refreshSessionData();
@@ -73,16 +101,26 @@ function ProfilePage() {
     } catch (error) {
       setMessage(error.message);
       notify({ type: "error", message: error.message || t("couldNotAddAddress") });
+    } finally {
+      setIsAddingAddress(false);
     }
   };
 
   const handleDeleteAddress = async (addressId) => {
+    if (busyAddressId) {
+      return;
+    }
+
+    setBusyAddressId(addressId);
+
     try {
       await removeAddress(accessToken, addressId);
       await refreshSessionData();
       notify({ type: "success", message: t("addressRemovedSuccess") });
     } catch (error) {
       notify({ type: "error", message: error.message || t("couldNotRemoveAddress") });
+    } finally {
+      setBusyAddressId("");
     }
   };
 
@@ -107,7 +145,9 @@ function ProfilePage() {
             {t("phone")}
             <input value={profileForm.phone} onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value })} />
           </label>
-          <button type="submit" className="solid-button auth-form__wide">{t("saveProfile")}</button>
+          <button type="submit" className="solid-button auth-form__wide" disabled={isSavingProfile} aria-busy={isSavingProfile}>
+            {isSavingProfile ? "Saving..." : t("saveProfile")}
+          </button>
         </form>
       </section>
 
@@ -125,7 +165,15 @@ function ProfilePage() {
                   {address.addressLine1}{address.addressLine2 ? `, ${address.addressLine2}` : ""}, {address.city}, {address.country}
                 </p>
               </div>
-              <button type="button" className="ghost-button" onClick={() => handleDeleteAddress(address._id)}>{t("remove")}</button>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => handleDeleteAddress(address._id)}
+                disabled={Boolean(busyAddressId)}
+                aria-busy={busyAddressId === address._id}
+              >
+                {busyAddressId === address._id ? "Removing..." : t("remove")}
+              </button>
             </article>
           ))}
         </div>
@@ -167,7 +215,9 @@ function ProfilePage() {
             <span>{t("makeDefaultAddress")}</span>
           </label>
           {message ? <p className="feedback-note auth-form__wide">{message}</p> : null}
-          <button type="submit" className="solid-button auth-form__wide">{t("addAddress")}</button>
+          <button type="submit" className="solid-button auth-form__wide" disabled={isAddingAddress} aria-busy={isAddingAddress}>
+            {isAddingAddress ? "Adding address..." : t("addAddress")}
+          </button>
         </form>
       </section>
     </div>

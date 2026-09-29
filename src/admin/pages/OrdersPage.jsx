@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getOrders, updateOrderReturnStatus, updateOrderStatus, createOrderShipment, trackOrderShipment, createOrderReturnShipment, trackOrderReturnShipment } from "../api/admin";
+import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -21,9 +22,15 @@ function OrdersPage() {
   const [isTrackingShipment, setIsTrackingShipment] = useState(false);
   const [isCreatingReturnShipment, setIsCreatingReturnShipment] = useState(false);
   const [isTrackingReturnShipment, setIsTrackingReturnShipment] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyAction, setBusyAction] = useState("");
 
   useEffect(() => {
-    getOrders(accessToken).then(setOrders).catch(() => setOrders([]));
+    setIsLoading(true);
+    getOrders(accessToken)
+      .then(setOrders)
+      .catch(() => setOrders([]))
+      .finally(() => setIsLoading(false));
   }, [accessToken]);
 
   const updateOrderInState = (updated) => {
@@ -38,6 +45,8 @@ function OrdersPage() {
   };
 
   const handleStatusChange = async (orderId) => {
+    if (busyAction) return;
+
     if (statusDraft === "cancelled" && !cancelReason.trim()) {
       notify({ type: "error", message: t("cancellationReasonRequiredAdmin") });
       return;
@@ -54,6 +63,7 @@ function OrdersPage() {
       return;
     }
 
+    setBusyAction(`${orderId}:status`);
     setIsSubmitting(true);
     try {
       const updated = await updateOrderStatus(accessToken, orderId, {
@@ -61,45 +71,53 @@ function OrdersPage() {
         ...(statusDraft === "cancelled" ? { cancellationReason: cancelReason.trim() } : {}),
       });
       updateOrderInState(updated);
-      
-      // Show special message for COD orders reaching delivered
-      if (statusDraft === "delivered" && selectedOrder?.paymentMethod === "cod" && updated.paymentStatus === "pending") {
-        notify({
-          type: "success",
-          message: "Order marked as delivered. Remember to update payment status to 'Paid' after collecting COD.",
-        });
-      } else {
-        notify({
-          type: "success",
-          message:
-            statusDraft === "cancelled"
-              ? updated.paymentStatus === "refunded"
-                ? t("orderCancelledRefundedSuccess")
-                : t("orderCancelledStockRestored")
-              : t("orderUpdatedToStatus", { status: statusDraft }),
-        });
-      }
+
+      notify({
+        type: "success",
+        message:
+          statusDraft === "cancelled"
+            ? updated.paymentStatus === "refunded"
+              ? t("orderCancelledRefundedSuccess")
+              : t("orderCancelledStockRestored")
+            : t("orderUpdatedToStatus", { status: statusDraft }),
+      });
     } catch (error) {
       notify({ type: "error", message: error.message || t("orderUpdateError") });
     } finally {
       setIsSubmitting(false);
+      setBusyAction("");
     }
   };
 
   const handleReturnUpdate = async (orderId) => {
+    if (busyAction) return;
+
+    if (returnDraft.returnStatus === "rejected" && !returnDraft.returnResolutionNote.trim()) {
+      notify({ type: "error", message: "Please add a note explaining why the return is rejected." });
+      return;
+    }
+
+    setBusyAction(`${orderId}:return`);
     setIsSubmitting(true);
     try {
       const updated = await updateOrderReturnStatus(accessToken, orderId, returnDraft);
       updateOrderInState(updated);
-      notify({ type: "success", message: "Return status updated successfully." });
+      notify({
+        type: "success",
+        message:
+          returnDraft.returnStatus === "approved" && updated.returnTrackingNumber
+            ? `Return approved. Aramex pickup booked (tracking: ${updated.returnTrackingNumber}).`
+            : "Return status updated successfully.",
+      });
     } catch (error) {
-      notify({ type: "error", message: "Could not update return status." });
+      notify({ type: "error", message: error.message || "Could not update return status." });
     } finally {
       setIsSubmitting(false);
+      setBusyAction("");
     }
   };
 
-  const handleCreateShipment = async (orderId) => {
+  const runCreateShipment = async (orderId) => {
     setIsCreatingShipment(true);
     try {
       const updated = await createOrderShipment(accessToken, orderId);
@@ -112,17 +130,39 @@ function OrdersPage() {
     }
   };
 
+  const handleCreateShipment = async (orderId) => {
+    if (busyAction) return;
+
+    setBusyAction(`${orderId}:shipment`);
+    try {
+      await runCreateShipment(orderId);
+    } finally {
+      setBusyAction("");
+    }
+  };
+
   const handleRecreateShipment = async (orderId) => {
+    if (busyAction) return;
+
     const confirmed = window.confirm(
       "This will create a new shipment and may replace the existing tracking number. Are you sure you want to continue?"
     );
     if (!confirmed) {
       return;
     }
-    await handleCreateShipment(orderId);
+
+    setBusyAction(`${orderId}:recreate`);
+    try {
+      await runCreateShipment(orderId);
+    } finally {
+      setBusyAction("");
+    }
   };
 
   const handleTrackShipment = async (orderId) => {
+    if (busyAction) return;
+
+    setBusyAction(`${orderId}:track`);
     setIsTrackingShipment(true);
     try {
       const updated = await trackOrderShipment(accessToken, orderId);
@@ -132,10 +172,14 @@ function OrdersPage() {
       notify({ type: "error", message: error.message || "Failed to track shipment." });
     } finally {
       setIsTrackingShipment(false);
+      setBusyAction("");
     }
   };
 
   const handleCreateReturnShipment = async (orderId) => {
+    if (busyAction) return;
+
+    setBusyAction(`${orderId}:returnShipment`);
     setIsCreatingReturnShipment(true);
     try {
       const updated = await createOrderReturnShipment(accessToken, orderId);
@@ -145,10 +189,14 @@ function OrdersPage() {
       notify({ type: "error", message: error.message || "Failed to create return shipment." });
     } finally {
       setIsCreatingReturnShipment(false);
+      setBusyAction("");
     }
   };
 
   const handleTrackReturnShipment = async (orderId) => {
+    if (busyAction) return;
+
+    setBusyAction(`${orderId}:returnTrack`);
     setIsTrackingReturnShipment(true);
     try {
       const updated = await trackOrderReturnShipment(accessToken, orderId);
@@ -158,6 +206,7 @@ function OrdersPage() {
       notify({ type: "error", message: error.message || "Failed to track return shipment." });
     } finally {
       setIsTrackingReturnShipment(false);
+      setBusyAction("");
     }
   };
 
@@ -180,7 +229,11 @@ function OrdersPage() {
             <span>{t("tracking")}</span>
             <span>{t("actions")}</span>
           </div>
-          {!orders.length ? <div className="admin-table__empty">{t("noDataFound")}</div> : null}
+          {isLoading ? (
+            <AdminLoading variant="table" label={t("loadingOrders")} count={5} />
+          ) : !orders.length ? (
+            <div className="admin-table__empty">{t("noDataFound")}</div>
+          ) : null}
           {orders.map((order) => (
             <article key={order._id} className="admin-table__row admin-table__row--order">
               <span>{order.orderNumber}</span>
@@ -312,8 +365,9 @@ function OrdersPage() {
                 </div>
               </div>
 
-              {/* Aramex Shipping Actions */}
-              <div className={`admin-order-detail__section ${selectedOrder.orderStatus !== "placed" ? "admin-order-detail__section--shipping enabled" : ""}`}>
+              {/* Aramex Shipping Actions - paid orders are shipped automatically,
+                  these buttons are for retrying or re-creating a shipment. */}
+              <div className="admin-order-detail__section admin-order-detail__section--shipping enabled">
                 <strong>Aramex Shipping</strong>
                 <div className="aramex-shipping-actions">
                   <div className="aramex-shipping-status">
@@ -337,6 +391,14 @@ function OrdersPage() {
                         </a>
                       </div>
                     ) : null}
+                    <div className="aramex-shipping-status__item">
+                      <span>Pickup:</span>
+                      <strong>Store (Al Ain)</strong>
+                    </div>
+                    <div className="aramex-shipping-status__item">
+                      <span>Delivery:</span>
+                      <strong>Customer address</strong>
+                    </div>
                   </div>
                   <div className="aramex-shipping-buttons">
                     {!selectedOrder.trackingNumber ? (
@@ -344,8 +406,13 @@ function OrdersPage() {
                         type="button"
                         className="admin-button admin-button--primary"
                         onClick={() => handleCreateShipment(selectedOrder._id)}
-                        disabled={isCreatingShipment || selectedOrder.orderStatus === "placed"}
-                        title={selectedOrder.orderStatus === "placed" ? "Please confirm the order first" : "Create Aramex shipment"}
+                        disabled={isCreatingShipment || selectedOrder.orderStatus === "cancelled" || Boolean(busyAction)}
+                        aria-busy={busyAction === `${selectedOrder._id}:shipment`}
+                        title={
+                          selectedOrder.orderStatus === "cancelled"
+                            ? "Cancelled orders cannot be shipped"
+                            : "Create Aramex shipment"
+                        }
                       >
                         {isCreatingShipment ? "Creating Shipment..." : "Create Shipment"}
                       </button>
@@ -355,7 +422,8 @@ function OrdersPage() {
                           type="button"
                           className="admin-button"
                           onClick={() => handleTrackShipment(selectedOrder._id)}
-                          disabled={isTrackingShipment}
+                          disabled={isTrackingShipment || Boolean(busyAction)}
+                          aria-busy={busyAction === `${selectedOrder._id}:track`}
                         >
                           {isTrackingShipment ? "Tracking..." : "Track Shipment"}
                         </button>
@@ -363,9 +431,10 @@ function OrdersPage() {
                           type="button"
                           className="admin-button admin-button--secondary"
                           onClick={() => handleRecreateShipment(selectedOrder._id)}
-                          disabled={isCreatingShipment}
+                          disabled={isCreatingShipment || Boolean(busyAction)}
+                          aria-busy={busyAction === `${selectedOrder._id}:recreate`}
                         >
-                          Re-create Shipment
+                          {busyAction === `${selectedOrder._id}:recreate` ? "Re-creating Shipment..." : "Re-create Shipment"}
                         </button>
                       </>
                     )}
@@ -373,10 +442,12 @@ function OrdersPage() {
                 </div>
               </div>
 
-              {/* Helper text for shipping */}
-              {selectedOrder.orderStatus === "placed" && !selectedOrder.trackingNumber ? (
+              {selectedOrder.orderStatus !== "cancelled" && !selectedOrder.trackingNumber ? (
                 <div className="admin-order-helper">
-                  <p>⚠ Please click "Confirm Order" below to verify the order details before creating the shipment.</p>
+                  <p>
+                    The shipment is created automatically right after the Stripe payment succeeds. If no tracking number
+                    is listed, the Aramex request failed and can be retried with the button above.
+                  </p>
                 </div>
               ) : null}
 
@@ -413,33 +484,23 @@ function OrdersPage() {
                   type="button"
                   className="admin-button admin-button--ghost"
                   onClick={() => handleStatusChange(selectedOrder._id)}
-                  disabled={isSubmitting || statusDraft === selectedOrder.orderStatus}
+                  disabled={isSubmitting || statusDraft === selectedOrder.orderStatus || Boolean(busyAction)}
+                  aria-busy={busyAction === `${selectedOrder._id}:status`}
                 >
                   {isSubmitting ? t("saving") : t("saveStatus")}
                 </button>
               </div>
 
-              {/* Payment Status Update - Important for COD orders */}
+              {/* Payment Status Update */}
               <div className="admin-order-detail__section admin-order-detail__section--payment">
                 <strong>Payment Status</strong>
                 <p className="payment-info">
-                  {selectedOrder.paymentMethod === "stripe" ? (
-                    selectedOrder.paymentStatus === "paid" ? (
-                      <span className="payment-note payment-note--success">✓ Stripe payment already collected</span>
-                    ) : (
-                      <span className="payment-note">Stripe payment status: {selectedOrder.paymentStatus}</span>
-                    )
-                  ) : selectedOrder.paymentStatus === "paid" ? (
-                    <span className="payment-note payment-note--success">✓ COD payment collected</span>
+                  {selectedOrder.paymentStatus === "paid" ? (
+                    <span className="payment-note payment-note--success">✓ Stripe payment already collected</span>
                   ) : (
-                    <span className="payment-note payment-note--warning">⚠ COD payment not collected yet</span>
+                    <span className="payment-note">Stripe payment status: {selectedOrder.paymentStatus}</span>
                   )}
                 </p>
-                {selectedOrder.paymentMethod === "cod" && selectedOrder.paymentStatus !== "paid" ? (
-                  <div className="payment-update-hint">
-                    <p>For COD orders: After delivering the package and collecting payment, update payment status to "paid" to complete the order.</p>
-                  </div>
-                ) : null}
               </div>
 
               {selectedOrder.returnStatus && selectedOrder.returnStatus !== "none" ? (
@@ -450,33 +511,27 @@ function OrdersPage() {
                   </p>
                   {selectedOrder.returnReason ? <p>Reason: {selectedOrder.returnReason}</p> : null}
                   {selectedOrder.returnDetails ? <p>Details: {selectedOrder.returnDetails}</p> : null}
-                  {selectedOrder.paymentMethod === "cod" ? (
+                  {selectedOrder.returnStatus === "requested" ? (
                     <div className="admin-order-detail__subsection">
-                      <strong>Refund Account Details</strong>
-                      {selectedOrder.returnRefundAccount?.accountNumber ? (
-                        <p>
-                          Holder: {selectedOrder.returnRefundAccount.accountHolderName || "N/A"}
-                          <br />
-                          Bank: {selectedOrder.returnRefundAccount.bankName || "N/A"}
-                          <br />
-                          Account: {selectedOrder.returnRefundAccount.accountNumber}
-                          {selectedOrder.returnRefundAccount?.iban ? (
-                            <>
-                              <br />
-                              IBAN: {selectedOrder.returnRefundAccount.iban}
-                            </>
-                          ) : null}
-                        </p>
-                      ) : (
-                        <p>No refund account details have been submitted yet.</p>
-                      )}
+                      <strong>Awaiting your approval</strong>
+                      <p>
+                        The customer has submitted a return request. Set the status to <strong>approved</strong> to
+                        accept it — the Aramex return pickup from the customer's address is booked automatically. Set it
+                        to <strong>rejected</strong> with a note to decline it.
+                      </p>
                     </div>
-                  ) : (
-                    <div className="admin-order-detail__subsection">
-                      <strong>Refund Method</strong>
-                      <p>Stripe returns should be refunded back automatically to the original payment method. Separate bank account details are not required.</p>
-                    </div>
-                  )}
+                  ) : null}
+                  <div className="admin-order-detail__subsection">
+                    <strong>Return Pickup</strong>
+                    <p>
+                      Once approved, Aramex collects from the customer's delivery address and delivers to the store in
+                      Al Ain.
+                    </p>
+                  </div>
+                  <div className="admin-order-detail__subsection">
+                    <strong>Refund Method</strong>
+                    <p>Stripe returns should be refunded back automatically to the original payment method. Separate bank account details are not required.</p>
+                  </div>
 
                   {/* Return Shipment Actions */}
                   <div className="aramex-shipping-actions">
@@ -500,7 +555,8 @@ function OrdersPage() {
                           type="button"
                           className="admin-button admin-button--primary"
                           onClick={() => handleCreateReturnShipment(selectedOrder._id)}
-                          disabled={isCreatingReturnShipment}
+                          disabled={isCreatingReturnShipment || Boolean(busyAction)}
+                          aria-busy={busyAction === `${selectedOrder._id}:returnShipment`}
                         >
                           {isCreatingReturnShipment ? "Creating..." : "Create Return Shipment"}
                         </button>
@@ -510,7 +566,8 @@ function OrdersPage() {
                             type="button"
                             className="admin-button"
                             onClick={() => handleTrackReturnShipment(selectedOrder._id)}
-                            disabled={isTrackingReturnShipment}
+                            disabled={isTrackingReturnShipment || Boolean(busyAction)}
+                            aria-busy={busyAction === `${selectedOrder._id}:returnTrack`}
                           >
                             {isTrackingReturnShipment ? "Tracking..." : "Track Return"}
                           </button>
@@ -547,7 +604,8 @@ function OrdersPage() {
                       type="button"
                       className="admin-button admin-button--ghost"
                       onClick={() => handleReturnUpdate(selectedOrder._id)}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || returnDraft.returnStatus === selectedOrder.returnStatus || Boolean(busyAction)}
+                      aria-busy={busyAction === `${selectedOrder._id}:return`}
                     >
                       {isSubmitting ? t("saving") : "Save Return"}
                     </button>

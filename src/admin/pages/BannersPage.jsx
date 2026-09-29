@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { mediaUrl } from "../api/client";
 import { createBanner, deleteBanner, getBanners, updateBanner, uploadAdminImage } from "../api/admin";
+import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -28,9 +29,15 @@ function BannersPage() {
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingBannerId, setEditingBannerId] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
 
   useEffect(() => {
-    getBanners(accessToken).then(setBanners).catch(() => setBanners([]));
+    setIsLoading(true);
+    getBanners(accessToken)
+      .then(setBanners)
+      .catch(() => setBanners([]))
+      .finally(() => setIsLoading(false));
   }, [accessToken]);
 
   useEffect(() => {
@@ -108,7 +115,11 @@ function BannersPage() {
             <span>{t("sort")}</span>
             <span>{t("actions")}</span>
           </div>
-          {!banners.length ? <div className="admin-table__empty">{t("noDataFound")}</div> : null}
+          {isLoading ? (
+            <AdminLoading variant="table" label={t("loadingBanners")} count={5} />
+          ) : !banners.length ? (
+            <div className="admin-table__empty">{t("noDataFound")}</div>
+          ) : null}
           {banners.map((banner) => (
             <article key={banner._id} className="admin-table__row admin-table__row--banners">
               {banner.image ? (
@@ -151,6 +162,8 @@ function BannersPage() {
                   type="button"
                   className="admin-button admin-button--ghost admin-button--danger"
                   onClick={async () => {
+                    if (busyId) return;
+
                     const accepted = await confirm({
                       title: t("deleteBannerTitle"),
                       message: t("deleteBannerConfirm"),
@@ -161,10 +174,18 @@ function BannersPage() {
                     if (!accepted) {
                       return;
                     }
-                    await deleteBanner(accessToken, banner._id);
-                    setBanners((current) => current.filter((item) => item._id !== banner._id));
-                    notify({ type: "success", message: t("bannerDeletedSuccess") });
+
+                    setBusyId(banner._id);
+                    try {
+                      await deleteBanner(accessToken, banner._id);
+                      setBanners((current) => current.filter((item) => item._id !== banner._id));
+                      notify({ type: "success", message: t("bannerDeletedSuccess") });
+                    } finally {
+                      setBusyId("");
+                    }
                   }}
+                  disabled={Boolean(busyId)}
+                  aria-busy={busyId === banner._id}
                 >
                   {t("delete")}
                 </button>

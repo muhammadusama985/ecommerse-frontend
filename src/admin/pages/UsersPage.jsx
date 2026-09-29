@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createUser, deleteUser, getUsers, updateUser } from "../api/admin";
+import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
@@ -21,9 +22,15 @@ function UsersPage() {
   const [form, setForm] = useState(initialForm);
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
 
   useEffect(() => {
-    getUsers(accessToken).then(setUsers).catch(() => setUsers([]));
+    setIsLoading(true);
+    getUsers(accessToken)
+      .then(setUsers)
+      .catch(() => setUsers([]))
+      .finally(() => setIsLoading(false));
   }, [accessToken]);
 
   const handleSubmit = async (event) => {
@@ -64,7 +71,11 @@ function UsersPage() {
             <span>{t("addresses")}</span>
             <span>{t("actions")}</span>
           </div>
-        {!users.length ? <div className="admin-table__empty">{t("noDataFound")}</div> : null}
+        {isLoading ? (
+          <AdminLoading variant="table" label={t("loadingUsers")} count={5} />
+        ) : !users.length ? (
+          <div className="admin-table__empty">{t("noDataFound")}</div>
+        ) : null}
         {users.map((user) => (
           <article key={user._id} className="admin-table__row admin-table__row--user">
             <span>{user.firstName} {user.lastName}</span>
@@ -87,6 +98,8 @@ function UsersPage() {
                 type="button"
                 className="admin-button admin-button--ghost admin-button--danger"
                 onClick={async () => {
+                  if (busyId) return;
+
                   const accepted = await confirm({
                     title: t("deleteUserTitle"),
                     message: t("deleteUserConfirm"),
@@ -97,10 +110,18 @@ function UsersPage() {
                   if (!accepted) {
                     return;
                   }
-                  await deleteUser(accessToken, user._id);
-                  setUsers((current) => current.filter((item) => item._id !== user._id));
-                  notify({ type: "success", message: t("userDeletedSuccess") });
+
+                  setBusyId(user._id);
+                  try {
+                    await deleteUser(accessToken, user._id);
+                    setUsers((current) => current.filter((item) => item._id !== user._id));
+                    notify({ type: "success", message: t("userDeletedSuccess") });
+                  } finally {
+                    setBusyId("");
+                  }
                 }}
+                disabled={Boolean(busyId)}
+                aria-busy={busyId === user._id}
               >
                 {t("delete")}
               </button>

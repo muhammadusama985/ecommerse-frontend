@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { listProducts } from "../api/products";
 import { getBestSellerPageData } from "../api/storefront";
+import { LoadingState } from "../components/LoadingState";
 import { ProductCard } from "../components/ProductCard";
 import { useLanguage } from "../context/LanguageContext";
 import { translateCategoryCollection, translateProductCollection } from "../lib/contentTranslation";
@@ -11,6 +12,7 @@ function AllProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [filters, setFilters] = useState({
     categoryId: searchParams.get("categoryId") || "",
@@ -33,15 +35,43 @@ function AllProductsPage() {
   );
 
   useEffect(() => {
+    let isCancelled = false;
+
     getBestSellerPageData()
-      .then(async (data) => setCategories(await translateCategoryCollection(language, data.categories || [])))
-      .catch(() => setCategories([]));
+      .then(async (data) => {
+        if (isCancelled) return;
+        setCategories(await translateCategoryCollection(language, data.categories || []));
+      })
+      .catch(() => {
+        if (!isCancelled) setCategories([]);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [language]);
 
   useEffect(() => {
+    let isCancelled = false;
+    // Filter changes refetch the grid, so keep the previous results visible
+    // behind a busy state instead of blanking the page.
+    setIsLoadingProducts(true);
+
     listProducts(query)
-      .then(async (items) => setProducts(await translateProductCollection(language, items)))
-      .catch(() => setProducts([]));
+      .then(async (items) => {
+        if (isCancelled) return;
+        setProducts(await translateProductCollection(language, items));
+      })
+      .catch(() => {
+        if (!isCancelled) setProducts([]);
+      })
+      .finally(() => {
+        if (!isCancelled) setIsLoadingProducts(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [language, query]);
 
   const applyFilters = () => {
@@ -113,13 +143,18 @@ function AllProductsPage() {
           <button type="button" className="solid-button panel-button" onClick={applyFilters}>{t("applyFilters")}</button>
           <button type="button" className="ghost-button panel-button" onClick={clearFilters}>{t("clearFilters")}</button>
         </aside>
-        <div className="listing-content">
+        <div className="listing-content" aria-busy={isLoadingProducts}>
           <div className="listing-toolbar">
             <span>{t("showingProductsCount", { count: products.length })}</span>
+            {isLoadingProducts ? <LoadingState compact label={t("loadingGeneric")} /> : null}
           </div>
-          <div className="product-grid">
-            {products.map((product) => <ProductCard key={product._id} product={product} />)}
-          </div>
+          {isLoadingProducts && !products.length ? (
+            <LoadingState variant="skeleton" label={t("loadingGeneric")} count={6} />
+          ) : (
+            <div className="product-grid">
+              {products.map((product) => <ProductCard key={product._id} product={product} />)}
+            </div>
+          )}
         </div>
       </section>
     </div>

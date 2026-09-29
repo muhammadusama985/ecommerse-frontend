@@ -13,9 +13,17 @@ function LoginPage() {
   const { notify } = useNotifications();
   const [form, setForm] = useState({ email: "", password: "" });
   const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage("");
 
     try {
       const session = await login(form, "customer");
@@ -27,6 +35,8 @@ function LoginPage() {
     } catch (error) {
       setMessage(error.message);
       notify({ type: "error", message: error.message || t("loginFailedGeneric") });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -45,6 +55,7 @@ function LoginPage() {
             value={form.email}
             onChange={(event) => setForm({ ...form, email: event.target.value })}
             required
+            disabled={isSubmitting}
           />
         </label>
         <label>
@@ -55,11 +66,17 @@ function LoginPage() {
             value={form.password}
             onChange={(event) => setForm({ ...form, password: event.target.value })}
             required
+            disabled={isSubmitting}
           />
         </label>
         {message ? <p className="feedback-note">{message}</p> : null}
-        <button type="submit" className="solid-button solid-button--large auth-form__submit">
-          {t("login")}
+        <button
+          type="submit"
+          className="solid-button solid-button--large auth-form__submit"
+          disabled={isSubmitting}
+          aria-busy={isSubmitting}
+        >
+          {isSubmitting ? "Signing in..." : t("login")}
         </button>
         <div className="auth-form__wide auth-form__wide--centered">
           <SocialAuthButtons

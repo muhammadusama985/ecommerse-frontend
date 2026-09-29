@@ -33,17 +33,12 @@ async function cancelOrder(token, orderId) {
 }
 
 async function requestReturn(token, orderId, payload) {
-  const response = await request(`/orders/${orderId}/return-status`, {
-    method: "PATCH",
+  const response = await request(`/orders/${orderId}/return-request`, {
+    method: "POST",
     token,
     body: {
-      returnStatus: "requested",
       returnReason: payload.returnReason,
       returnDetails: payload.returnDetails || undefined,
-      refundAccountHolderName: payload.refundAccountHolderName || undefined,
-      refundBankName: payload.refundBankName || undefined,
-      refundAccountNumber: payload.refundAccountNumber || undefined,
-      refundIban: payload.refundIban || undefined,
     },
   });
   return response.data;
