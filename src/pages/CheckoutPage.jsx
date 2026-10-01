@@ -5,6 +5,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { createOrder, createStripePaymentIntent } from "../api/orders";
 import { getAramexRate } from "../api/shipping";
 import { useLanguage } from "../context/LanguageContext";
+import { pickLocalizedItems, translateCartItems } from "../lib/contentTranslation";
 import { useNotifications } from "../context/NotificationContext";
 import { useShop } from "../context/ShopContext";
 
@@ -378,7 +379,7 @@ function StripeCheckoutContent(props) {
 }
 
 function CheckoutPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { notify } = useNotifications();
   const navigate = useNavigate();
   const { accessToken, cart, user, isAuthenticated, setCart, refreshSessionData } = useShop();
@@ -388,7 +389,7 @@ function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState("");
   const [stripeIntentId, setStripeIntentId] = useState("");
   const [isCreatingIntent, setIsCreatingIntent] = useState(false);
-  const [isStripeFormComplete, setStripeFormComplete] = useState(false);
+  const [isStripeFormComplete, setIsStripeFormComplete] = useState(false);
   const [isLoadingShipping, setIsLoadingShipping] = useState(false);
   // "idle" -> no address yet, "loading" -> asking Aramex, "ready" -> the charge
   // is known and folded into the total, "error" -> the rate call failed.
@@ -396,7 +397,31 @@ function CheckoutPage() {
   const [quote, setQuote] = useState(null);
   const [shippingAttempt, setShippingAttempt] = useState(0);
   const addresses = user?.addresses || [];
-  const items = cart?.items || [];
+  const cartItems = cart?.items;
+  const [localizedItems, setLocalizedItems] = useState([]);
+  const items = pickLocalizedItems(localizedItems, cartItems);
+
+  // Order summary product names follow the site language.
+  useEffect(() => {
+    let isCancelled = false;
+    const source = cartItems || [];
+
+    if (language === "en") {
+      setLocalizedItems(source);
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    translateCartItems(language, source).then((items) => {
+      if (!isCancelled) setLocalizedItems(items);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [language, cartItems]);
+
   const stripePromise = useMemo(() => {
     if (paymentMethod !== "stripe" || !import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
       return null;

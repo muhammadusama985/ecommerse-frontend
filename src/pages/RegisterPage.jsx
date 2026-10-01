@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register } from "../api/auth";
-import { SocialAuthButtons } from "../components/SocialAuthButtons";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
 import { useShop } from "../context/ShopContext";
@@ -109,14 +108,6 @@ function RegisterPage() {
         >
           {isSubmitting ? "Creating account..." : t("createAccount")}
         </button>
-        <div className="auth-form__wide auth-form__wide--centered">
-          <SocialAuthButtons
-            onSuccess={(session) => {
-              setSession(session);
-              navigate("/");
-            }}
-          />
-        </div>
         <div className="auth-links auth-links--centered auth-form__wide">
           <p className="auth-switch">
             {t("alreadyRegistered")} <Link to="/login">{t("loginHere")}</Link>

@@ -194,12 +194,60 @@ async function translateProductDetailPayload(language, payload) {
   };
 }
 
+async function translateCartItems(language, items = []) {
+  if (language === "en" || !items.length) return items;
+
+  const products = items.map((item) => item.productId).filter(Boolean);
+  const translatedProducts = await translateProductCollection(language, products);
+  let cursor = 0;
+
+  return items.map((item) => {
+    if (!item.productId) return item;
+    return { ...item, productId: translatedProducts[cursor++] || item.productId };
+  });
+}
+
+async function translateWishlist(language, products = []) {
+  return translateProductCollection(language, products);
+}
+
+async function translateOrderItems(language, orders = []) {
+  if (language === "en" || !orders.length) return orders;
+
+  const texts = [];
+  orders.forEach((order) => {
+    (order.items || []).forEach((item) => {
+      texts.push(item.name || "");
+    });
+  });
+
+  const translated = await translateTextsCached(language, texts);
+  let cursor = 0;
+
+  return orders.map((order) => ({
+    ...order,
+    items: (order.items || []).map((item) => ({ ...item, name: translated[cursor++] || item.name })),
+  }));
+}
+
+// While a translation request is in flight the localised list is still empty or
+// the wrong length, so fall back to the untranslated source. That keeps the
+// first paint (and any "empty" checks) correct instead of flashing a blank
+// list until the batch resolves.
+function pickLocalizedItems(localized = [], source = []) {
+  return localized.length === source.length ? localized : source;
+}
+
 export {
+  pickLocalizedItems,
   translateBlogPosts,
+  translateCartItems,
   translateCategoryCollection,
   translateContentPage,
+  translateOrderItems,
   translateProductCollection,
   translateProductDetailPayload,
   translateSingleBlogPost,
   translateTextsCached,
+  translateWishlist,
 };

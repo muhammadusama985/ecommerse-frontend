@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { removeWishlistItem } from "../api/users";
 import { LoadingState } from "../components/LoadingState";
@@ -6,12 +6,35 @@ import { ProductCard } from "../components/ProductCard";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
 import { useShop } from "../context/ShopContext";
+import { pickLocalizedItems, translateWishlist } from "../lib/contentTranslation";
 
 function WishlistPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { accessToken, wishlist, isAuthenticated, isSessionLoading, setWishlist } = useShop();
   const { notify } = useNotifications();
   const [busyProductId, setBusyProductId] = useState("");
+  const [localizedWishlist, setLocalizedWishlist] = useState([]);
+
+  // Saved product names follow the site language so the grid switches with it.
+  useEffect(() => {
+    let isCancelled = false;
+    const source = wishlist || [];
+
+    if (language === "en") {
+      setLocalizedWishlist(source);
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    translateWishlist(language, source).then((products) => {
+      if (!isCancelled) setLocalizedWishlist(products);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [language, wishlist]);
 
   if (!isAuthenticated) {
     return (
@@ -62,7 +85,7 @@ function WishlistPage() {
         </div>
       ) : (
         <div className="wishlist-grid">
-          {wishlist.map((product) => (
+          {pickLocalizedItems(localizedWishlist, wishlist).map((product) => (
             <div key={product._id} className="wishlist-tile">
               <ProductCard product={product} />
               <button

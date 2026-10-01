@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { mediaUrl } from "../api/client";
 import { applyCoupon, clearCart, removeCartItem, removeCoupon, updateCartItem } from "../api/cart";
@@ -6,9 +6,10 @@ import { LoadingState } from "../components/LoadingState";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
 import { useShop } from "../context/ShopContext";
+import { pickLocalizedItems, translateCartItems } from "../lib/contentTranslation";
 
 function CartPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { accessToken, cart, isAuthenticated, isSessionLoading, setCart } = useShop();
   const { notify } = useNotifications();
   const [couponCode, setCouponCode] = useState("");
@@ -16,6 +17,30 @@ function CartPage() {
   // Keyed by intent so each control only shows busy for its own request, and a
   // rapid double-click on qty +/- cannot stack two updates for the same line.
   const [busyAction, setBusyAction] = useState("");
+  const cartItems = cart?.items;
+  const [localizedItems, setLocalizedItems] = useState([]);
+
+  // Product names and categories follow the site language, so switching to
+  // Arabic re-renders the cart copy without reloading the page.
+  useEffect(() => {
+    let isCancelled = false;
+    const source = cartItems || [];
+
+    if (language === "en") {
+      setLocalizedItems(source);
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    translateCartItems(language, source).then((items) => {
+      if (!isCancelled) setLocalizedItems(items);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [language, cartItems]);
 
   if (!isAuthenticated) {
     return (
@@ -27,7 +52,7 @@ function CartPage() {
     );
   }
 
-  const items = cart?.items || [];
+  const items = pickLocalizedItems(localizedItems, cartItems);
   const hasOutOfStockItems = items.some((item) => Number(item.productId?.stock || 0) <= 0);
   const isCartBusy = Boolean(busyAction);
 

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login } from "../api/auth";
-import { SocialAuthButtons } from "../components/SocialAuthButtons";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
 import { useShop } from "../context/ShopContext";
@@ -78,19 +77,6 @@ function LoginPage() {
         >
           {isSubmitting ? "Signing in..." : t("login")}
         </button>
-        <div className="auth-form__wide auth-form__wide--centered">
-          <SocialAuthButtons
-            portal="customer"
-            onSuccess={(session) => {
-              if (session.user.role === "admin") {
-                notify({ type: "error", message: t("adminLoginOnly") });
-                return;
-              }
-              setSession(session);
-              navigate("/");
-            }}
-          />
-        </div>
         <div className="auth-links auth-links--centered">
           <p className="auth-switch">
             <Link to="/forgot-password">{t("forgotPassword")}</Link>

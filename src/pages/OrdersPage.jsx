@@ -5,6 +5,7 @@ import { LoadingState } from "../components/LoadingState";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
 import { useShop } from "../context/ShopContext";
+import { pickLocalizedItems, translateOrderItems } from "../lib/contentTranslation";
 
 function ReturnModal({ order, onClose, onSuccess }) {
   const { t } = useLanguage();
@@ -118,11 +119,12 @@ function ReturnModal({ order, onClose, onSuccess }) {
 }
 
 function OrdersPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const location = useLocation();
   const { accessToken, isAuthenticated } = useShop();
   const { notify } = useNotifications();
   const [orders, setOrders] = useState([]);
+  const [localizedOrders, setLocalizedOrders] = useState([]);
   const [message, setMessage] = useState("");
   const [busyOrderId, setBusyOrderId] = useState("");
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
@@ -163,6 +165,29 @@ function OrdersPage() {
       isCancelled = true;
     };
   }, [accessToken, notify]);
+
+  // Order line items store the product name captured at purchase time, so they
+  // need their own pass through the translator to follow the site language.
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (language === "en") {
+      setLocalizedOrders(orders);
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    translateOrderItems(language, orders).then((translated) => {
+      if (!isCancelled) setLocalizedOrders(translated);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [language, orders]);
+
+  const visibleOrders = pickLocalizedItems(localizedOrders, orders);
 
   const handleCancelOrder = async (event, orderId) => {
     event.stopPropagation();
@@ -226,7 +251,7 @@ function OrdersPage() {
 
       {isLoadingOrders ? (
         <LoadingState variant="rows" label={t("loadingOrders")} count={4} />
-      ) : !orders.length ? (
+      ) : !visibleOrders.length ? (
         <div className="empty-panel">
           <p>{t("noOrders")}</p>
           <Link to="/best-sellers" className="solid-button empty-panel__button">
@@ -235,7 +260,7 @@ function OrdersPage() {
         </div>
       ) : (
         <div className="orders-list orders-list--rich">
-          {orders.map((order) => {
+          {visibleOrders.map((order) => {
             const canCancel = !["delivered", "cancelled"].includes(order.orderStatus);
 
             return (

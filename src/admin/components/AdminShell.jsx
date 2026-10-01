@@ -56,9 +56,9 @@ function AdminShell({ children }) {
       <header className="admin-navbar">
         <div className="admin-navbar__inner">
           <div className="admin-brand">
-            <img src="/logo.png" alt="Konjo" className="admin-brand__logo" />
+            <img src="/logo.jpeg" alt="Nature Republic" className="admin-brand__logo" />
             <div className="admin-brand__copy">
-              <strong>Konjo</strong>
+              <strong>Nature Republic</strong>
               <small>{t("adminDashboard")}</small>
             </div>
           </div>
