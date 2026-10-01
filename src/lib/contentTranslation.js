@@ -1,34 +1,6 @@
 import { translateBatch } from "../api/translate";
 
 const translationCache = new Map();
-const arabicFallbackPhrases = {
-  "Top Selling Products": "المنتجات الأكثر مبيعاً",
-  "Best Selling Items": "المنتجات الأكثر مبيعاً",
-  "All Products": "كل المنتجات",
-  "Home / All Products": "الرئيسية / كل المنتجات",
-  "Home / Best Sellers": "الرئيسية / الأكثر مبيعاً",
-  "Browse the full catalog with working category, price, rating, and sort filters.": "تصفح كامل الكتالوج مع فلاتر الفئات والسعر والتقييم والترتيب.",
-  "Best-performing products displayed with the same professional product cards used across the storefront.": "أفضل المنتجات أداءً المعروضة بنفس بطاقات المنتجات الاحترافية عبر المتجر.",
-  "Best-selling beauty products that customers absolutely love": "منتجات الجمال الأكثر مبيعاً التي يحبها العملاء كثيراً",
-  "Search best sellers...": "ابحث في الأكثر مبيعاً...",
-  "Search": "بحث",
-  "Categories": "الفئات",
-  "All Categories": "كل الفئات",
-  "Price Range": "نطاق السعر",
-  "Min": "الأدنى",
-  "Max": "الأعلى",
-  "Sort By": "الترتيب حسب",
-  "Best Selling": "الأكثر مبيعاً",
-  "Top Rated": "الأعلى تقييماً",
-  "Price Low to High": "السعر من الأقل إلى الأعلى",
-  "Price High to Low": "السعر من الأعلى إلى الأقل",
-  "Minimum Rating": "الحد الأدنى للتقييم",
-  "All Ratings": "كل التقييمات",
-  "3+ Stars": "3 نجوم فأكثر",
-  "4+ Stars": "4 نجوم فأكثر",
-  "Filters": "الفلاتر",
-  "Beauty": "الجمال",
-};
 
 function getCacheKey(language, text) {
   return `${language}::${text}`;
@@ -57,17 +29,12 @@ async function translateTextsCached(language, texts) {
       const { translations } = await translateBatch({ target: language, texts: missingTexts });
       missingTexts.forEach((text, index) => {
         const translatedText = translations[index] || text;
-        const fallback =
-          language === "ar" && translatedText === text
-            ? arabicFallbackPhrases[text] || text
-            : translatedText;
-        translationCache.set(getCacheKey(language, text), fallback);
+        translationCache.set(getCacheKey(language, text), translatedText);
       });
     } catch {
-      missingTexts.forEach((text) => {
-        const fallback = language === "ar" ? arabicFallbackPhrases[text] || text : text;
-        translationCache.set(getCacheKey(language, text), fallback);
-      });
+      // Deliberately not cached: caching the English source here would pin the
+      // page to untranslated text for the rest of the session, so a later retry
+      // (after the quota or key is fixed) can still succeed.
     }
   }
 
@@ -230,6 +197,19 @@ async function translateOrderItems(language, orders = []) {
   }));
 }
 
+function isTranslatableLabel(text) {
+  if (typeof text !== "string") return false;
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  // Prices, quantities and bare symbols must stay exactly as written, so a
+  // label without a single letter is never handed to the translator.
+  if (!/[A-Za-z]/.test(trimmed)) return false;
+  if (/^(https?:\/\/|\/)/i.test(trimmed)) return false;
+  if (/^[\w-]{16,}$/.test(trimmed)) return false;
+  if (/^[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}$/.test(trimmed)) return false;
+  return true;
+}
+
 // While a translation request is in flight the localised list is still empty or
 // the wrong length, so fall back to the untranslated source. That keeps the
 // first paint (and any "empty" checks) correct instead of flashing a blank
@@ -239,6 +219,7 @@ function pickLocalizedItems(localized = [], source = []) {
 }
 
 export {
+  isTranslatableLabel,
   pickLocalizedItems,
   translateBlogPosts,
   translateCartItems,

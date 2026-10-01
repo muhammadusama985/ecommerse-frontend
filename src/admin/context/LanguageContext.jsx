@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { translateBatch } from "../../api/translate.js";
+import { isTranslatableLabel } from "../../lib/contentTranslation.js";
 
 const baseTranslations = {
   dashboard: "Dashboard",
@@ -294,47 +295,14 @@ const baseTranslations = {
   save: "Save",
 };
 
-const fallbackArabicTranslations = {
-  adminAccess: "دخول الإدارة",
-  login: "تسجيل الدخول",
-  language: "اللغة",
-  english: "الإنجليزية",
-  arabic: "العربية",
-  adminDashboard: "لوحة التحكم",
-  openLanguageMenu: "فتح قائمة اللغة",
-  loginToDashboard: "تسجيل الدخول إلى لوحة التحكم",
-  adminLoginCopy: "استخدم حساب المدير لإدارة المنتجات والمستخدمين والمراجعات وعمليات الطلبات.",
-  accountNotAllowedAdmin: "هذا الحساب غير مسموح له بالدخول إلى لوحة التحكم.",
-  loadingDashboard: "جاري تحميل لوحة التحكم...",
-  loadingRevenue: "جاري تحميل الإيرادات...",
-  loading: "جاري التحميل...",
-  loadingProducts: "جاري تحميل المنتجات...",
-  loadingCategories: "جاري تحميل التصنيفات...",
-  loadingBanners: "جاري تحميل البانرات...",
-  loadingPosts: "جاري تحميل المقالات...",
-  loadingPages: "جاري تحميل الصفحات...",
-  loadingReviews: "جاري تحميل المراجعات...",
-  loadingUsers: "جاري تحميل المستخدمين...",
-  loadingCoupons: "جاري تحميل الكوبونات...",
-  loadingOrders: "جاري تحميل الطلبات...",
-  loadingSettings: "جاري تحميل الإعدادات...",
-  email: "البريد الإلكتروني",
-  password: "كلمة المرور",
-  close: "إغلاق",
-  logout: "تسجيل الخروج",
-  stayHere: "البقاء هنا",
-};
-
-const STORAGE_KEY = "nr-admin-language";
-const CACHE_PREFIX = "nr-admin-language-cache-";
-const LANGUAGE_VERSION_KEY = "nr-admin-language-version";
-const LANGUAGE_VERSION = "3";
-const DEFAULT_LANGUAGE = "ar";
-const LanguageContext = createContext(null);
-
 function mapTranslations(keys, values) {
   return keys.reduce((accumulator, key, index) => {
-    accumulator[key] = values[index] || baseTranslations[key];
+    const source = baseTranslations[key];
+    const translated = values[index];
+    // A missing or unchanged reply keeps the original English label rather than
+    // inventing one, so nothing renders as a key or an empty string.
+    accumulator[key] =
+      isTranslatableLabel(source) && translated && translated !== source ? translated : source;
     return accumulator;
   }, {});
 }
@@ -386,7 +354,9 @@ function LanguageProvider({ children }) {
       setIsLoadingTranslations(true);
 
       try {
-        const keys = Object.keys(baseTranslations);
+        const keys = Object.keys(baseTranslations).filter((key) =>
+        isTranslatableLabel(baseTranslations[key]),
+      );
         const { translations } = await translateBatch({
           target: language,
           texts: keys.map((key) => baseTranslations[key]),
@@ -430,7 +400,7 @@ function LanguageProvider({ children }) {
         const template =
           language === "en"
             ? baseTranslations[key] || key
-            : dynamicTranslations[key] || fallbackArabicTranslations[key] || baseTranslations[key] || key;
+            : dynamicTranslations[key] || baseTranslations[key] || key;
 
         return Object.entries(variables).reduce(
           (message, [name, value]) => message.replaceAll(`{${name}}`, String(value)),

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { translateBatch } from "../api/translate";
+import { isTranslatableLabel } from "../lib/contentTranslation";
 
 const baseTranslations = {
   promoBar: "Free shipping on orders over AED 50 | Use code BEAUTY20 for your first order",
@@ -265,183 +266,21 @@ const baseTranslations = {
   carouselNextTopSelling: "Scroll top selling products right",
 };
 
-const fallbackArabicTranslations = {
-  carouselPrevCategories: "تحريك الفئات نحو اليسار",
-  carouselNextCategories: "تحريك الفئات نحو اليمين",
-  carouselPrevFeatured: "تحريك المنتجات المميزة نحو اليسار",
-  carouselNextFeatured: "تحريك المنتجات المميزة نحو اليمين",
-  carouselPrevTopSelling: "تحريك المنتجات الأكثر مبيعاً نحو اليسار",
-  carouselNextTopSelling: "تحريك المنتجات الأكثر مبيعاً نحو اليمين",
-  promoBar: "شحن مجاني للطلبات فوق 50 درهم | استخدم كود BEAUTY20 لأول طلب لك",
-  home: "الرئيسية",
-  allProducts: "كل المنتجات",
-  bestSellers: "الأكثر مبيعاً",
-  blog: "المدونة",
-  wishlist: "المفضلة",
-  orders: "الطلبات",
-  about: "من نحن",
-  contact: "اتصل بنا",
-  login: "تسجيل الدخول",
-  logout: "تسجيل الخروج",
-  profile: "الملف الشخصي",
-  cart: "السلة",
-  searchProducts: "ابحث عن المنتجات...",
-  shopByCategory: "تسوق حسب الفئة",
-  featuredProducts: "منتجات مميزة",
-  loading: "جاري التحميل...",
-  search: "بحث",
-  categories: "الفئات",
-  minRating: "الحد الأدنى للتقييم",
-  shoppingCart: "سلة التسوق",
-  orderSummary: "ملخص الطلب",
-  checkout: "إتمام الطلب",
-  forgotPassword: "نسيت كلمة المرور",
-  sendResetLink: "إرسال رابط إعادة التعيين",
-  resetPassword: "إعادة تعيين كلمة المرور",
-  createAccount: "إنشاء حساب",
-  yourAccount: "حسابك",
-  yourOrderHistory: "سجل طلباتك",
-  savedBeautyPicks: "اختياراتك المحفوظة",
-  beautyJournal: "مجلة الجمال",
-  article: "مقال",
-  readMore: "اقرأ المزيد",
-  information: "معلومات",
-  writeReview: "اكتب تقييماً",
-  submitReview: "إرسال التقييم",
-  email: "البريد الإلكتروني",
-  password: "كلمة المرور",
-  firstName: "الاسم الأول",
-  lastName: "اسم العائلة",
-  phone: "الهاتف",
-  loginRequired: "تسجيل الدخول مطلوب",
-  goToLogin: "اذهب إلى تسجيل الدخول",
-  exploreProducts: "استكشف المنتجات",
-  couponCode: "رمز القسيمة",
-  apply: "تطبيق",
-  removeCoupon: "إزالة القسيمة",
-  subtotal: "الإجمالي الفرعي",
-  discount: "الخصم",
-  total: "الإجمالي",
-  shippingAddress: "عنوان الشحن",
-  paymentMethod: "طريقة الدفع",
-  placeOrder: "تأكيد الطلب",
-  remove: "إزالة",
-  status: "الحالة",
-  payment: "الدفع",
-  pageNotFound: "الصفحة غير موجودة.",
-  blogNotFound: "المقال غير موجود.",
-  language: "اللغة",
-  english: "الإنجليزية",
-  arabic: "العربية",
-  beautyEssentials: "أساسيات الجمال",
-  shop: "التسوق",
-  company: "الشركة",
-  support: "الدعم",
-  myAccount: "حسابي",
-  footerBlurb: "متجر جمال عصري للعناية بالبشرة والمكياج والعناية بالشعر والعطور مع تجربة تسوق أنيقة عبر جميع الشاشات.",
-  cancel: "إلغاء",
-  continueShopping: "متابعة التسوق",
-  clearCart: "تفريغ السلة",
-  beautyFallback: "الجمال",
-  outOfStockNow: "نفد من المخزون",
-  homeAllProductsCrumb: "الرئيسية / كل المنتجات",
-  allProductsTitle: "كل المنتجات",
-  allProductsCopy: "تصفح كامل الكتالوج مع فلاتر الفئات والسعر والتقييم والترتيب.",
-  searchLabel: "بحث",
-  categoriesLabel: "الفئات",
-  allCategories: "كل الفئات",
-  priceRange: "نطاق السعر",
-  min: "الأدنى",
-  max: "الأعلى",
-  sortBy: "الترتيب حسب",
-  newest: "الأحدث",
-  bestSelling: "الأكثر مبيعاً",
-  priceLowToHigh: "السعر من الأقل إلى الأعلى",
-  priceHighToLow: "السعر من الأعلى إلى الأقل",
-  topRated: "الأعلى تقييماً",
-  minimumRating: "الحد الأدنى للتقييم",
-  allRatings: "كل التقييمات",
-  stars3Plus: "3 نجوم فأكثر",
-  stars4Plus: "4 نجوم فأكثر",
-  applyFilters: "تطبيق الفلاتر",
-  clearFilters: "مسح الفلاتر",
-  showingProductsCount: "عرض {count} منتج",
-  loadingGeneric: "جاري التحميل...",
-  bestSellerDataError: "تعذر تحميل بيانات الأكثر مبيعاً. تأكد من تشغيل الخادم.",
-  homeBestSellersCrumb: "الرئيسية / الأكثر مبيعاً",
-  searchBestSellers: "ابحث في الأكثر مبيعاً...",
-  showingBestSellersCount: "عرض {count} من المنتجات الأكثر مبيعاً",
-  homepageDataError: "تعذر تحميل الصفحة الرئيسية. تأكد من تشغيل الخادم.",
-  bannerIndicators: "مؤشرات البنرات",
-  showBannerNumber: "عرض البنر {index}",
-  shopByCategoryCopy: "استكشف الفئات التي تم إنشاؤها من لوحة التحكم وتصفح المنتجات مع فلاتر مباشرة.",
-  featuredProductsCopy: "اختيارات جمالية مميزة من الكتالوج المُدار من لوحة التحكم.",
-  topSellingProducts: "المنتجات الأكثر مبيعاً",
-  topSellingProductsCopy: "أفضل المنتجات أداءً المعروضة بنفس بطاقات المنتجات الاحترافية عبر المتجر.",
-  viewProducts: "عرض المنتجات",
-  unavailable: "غير متوفر",
-  loadingProduct: "جاري تحميل المنتج...",
-  filters: "الفلاتر",
-  product: "المنتج",
-  loadingCart: "جاري تحميل سلتك...",
-  loadingOrders: "جاري تحميل طلباتك...",
-  loadingWishlist: "جاري تحميل قائمة مفضلاتك...",
-  loadingProfile: "جاري تحميل ملفك الشخصي...",
-  savingBasket: "جاري حفظ سلتك...",
-  calculatingDelivery: "جاري حساب رسوم التوصيل...",
-  productLoadError: "تعذر تحميل تفاصيل المنتج.",
-  homeProductsBreadcrumb: "الرئيسية",
-  productsBreadcrumb: "المنتجات",
-  outOfStockLabel: "نفد من المخزون",
-  outOfStockCta: "نفد المخزون",
-  wishlistAction: "المفضلة",
-  manageProfileCopy: "قم بإدارة بياناتك وعناوين الشحن الخاصة بك.",
-  addresses: "العناوين",
-  savedAddresses: "العناوين المحفوظة",
-  saveProfile: "حفظ الملف الشخصي",
-  defaultAddress: "(افتراضي)",
-  label: "الاسم",
-  fullName: "الاسم الكامل",
-  city: "المدينة",
-  addressLine1: "العنوان 1",
-  addressLine2: "العنوان 2",
-  area: "المنطقة",
-  postalCode: "الرمز البريدي",
-  optional: "اختياري",
-  addAddress: "إضافة عنوان",
-  addToCart: "أضف إلى السلة",
-  saved: "محفوظ",
-  fastDispatch: "شحن سريع",
-  securePayment: "دفع آمن",
-  qualityAssured: "جودة مضمونة",
-  description: "الوصف",
-  noReviewsYet: "لا توجد تقييمات بعد.",
-  title: "العنوان",
-  shareYourExperience: "شارك تجربتك",
-  relatedProducts: "منتجات ذات صلة",
-  youMayAlsoLike: "قد يعجبك أيضاً",
-};
-
-fallbackArabicTranslations.beautyStorefront = "واجهة متجر الجمال";
-fallbackArabicTranslations.homeHeroTitle = "اكتشفي جمالك الطبيعي";
-fallbackArabicTranslations.homeHeroCopy =
-  "منتجات تجميل فاخرة تعزز إشراقتك الطبيعية. من أساسيات العناية بالبشرة إلى مستحضرات المكياج الراقية، ستجدين كل ما تحتاجينه لتشعري بالثقة والجمال مع نيتشر ريبابليك.";
-
 const STORAGE_KEY = "nr-language";
-const CACHE_PREFIX = "nr-language-cache-v6-";
+const CACHE_PREFIX = "nr-language-cache-v7-";
 const LANGUAGE_VERSION_KEY = "nr-language-version";
-const LANGUAGE_VERSION = "6";
+const LANGUAGE_VERSION = "7";
 const DEFAULT_LANGUAGE = "ar";
 const LanguageContext = createContext(null);
 
 function mapTranslations(keys, values) {
   return keys.reduce((accumulator, key, index) => {
-    const translatedValue = values[index] || baseTranslations[key];
+    const source = baseTranslations[key];
+    const translated = values[index];
+    // A missing or unchanged reply keeps the original English label rather than
+    // inventing one, so nothing renders as a key or an empty string.
     accumulator[key] =
-      translatedValue === baseTranslations[key] &&
-      (fallbackArabicTranslations[key] || (key === "shopNow" ? "تسوقي الآن" : ""))
-        ? fallbackArabicTranslations[key] || (key === "shopNow" ? "تسوقي الآن" : translatedValue)
-        : translatedValue;
+      isTranslatableLabel(source) && translated && translated !== source ? translated : source;
     return accumulator;
   }, {});
 }
@@ -493,7 +332,9 @@ function LanguageProvider({ children }) {
       setIsLoadingTranslations(true);
 
       try {
-        const keys = Object.keys(baseTranslations);
+        const keys = Object.keys(baseTranslations).filter((key) =>
+          isTranslatableLabel(baseTranslations[key]),
+        );
         const { translations } = await translateBatch({
           target: language,
           texts: keys.map((key) => baseTranslations[key]),
@@ -506,14 +347,14 @@ function LanguageProvider({ children }) {
           setDynamicTranslations(mappedTranslations);
         }
       } catch {
-        if (!isCancelled && cachedTranslations) {
+        // No hardcoded dictionary any more: keep whatever was cached before, and
+        // otherwise stay on the English copy until the next successful sync.
+        if (!isCancelled) {
           try {
-            setDynamicTranslations(JSON.parse(cachedTranslations));
+            setDynamicTranslations(cachedTranslations ? JSON.parse(cachedTranslations) : {});
           } catch {
-            setDynamicTranslations(language === "ar" ? fallbackArabicTranslations : {});
+            setDynamicTranslations({});
           }
-        } else if (!isCancelled && language === "ar") {
-          setDynamicTranslations(fallbackArabicTranslations);
         }
       } finally {
         if (!isCancelled) {
@@ -536,17 +377,10 @@ function LanguageProvider({ children }) {
       isLoadingTranslations,
       setLanguage,
       t(key, variables = {}) {
-        const runtimeArabicFallbacks = {
-          shopNow: "تسوقي الآن",
-        };
         const template =
           language === "en"
             ? baseTranslations[key] || key
-            : dynamicTranslations[key] ||
-              fallbackArabicTranslations[key] ||
-              runtimeArabicFallbacks[key] ||
-              baseTranslations[key] ||
-              key;
+            : dynamicTranslations[key] || baseTranslations[key] || key;
 
         return Object.entries(variables).reduce(
           (message, [name, value]) => message.replaceAll(`{${name}}`, String(value)),
