@@ -446,7 +446,7 @@ function CheckoutPage() {
     const resetPricing = () => {
       setClientSecret("");
       setStripeIntentId("");
-      setStripeFormComplete(false);
+      setIsStripeFormComplete(false);
       setIsCreatingIntent(false);
       setQuote(null);
     };
@@ -478,7 +478,7 @@ function CheckoutPage() {
 
         setClientSecret(intent.clientSecret || "");
         setStripeIntentId(intent.paymentIntentId || "");
-        setStripeFormComplete(false);
+        setIsStripeFormComplete(false);
         setQuote({
           subtotal: intent.subtotal,
           shippingAmount: intent.shippingAmount,
@@ -547,7 +547,7 @@ function CheckoutPage() {
     setMessage,
     setPaymentMethod,
     setSelectedAddressId,
-    setStripeFormComplete,
+    setStripeFormComplete: setIsStripeFormComplete,
     shippingState,
     stripeIntentId,
     t,
