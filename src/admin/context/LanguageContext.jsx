@@ -295,6 +295,13 @@ const baseTranslations = {
   save: "Save",
 };
 
+const STORAGE_KEY = "nr-language";
+const CACHE_PREFIX = "nr-language-cache-v7-";
+const LANGUAGE_VERSION_KEY = "nr-language-version";
+const LANGUAGE_VERSION = "7";
+const DEFAULT_LANGUAGE = "ar";
+const LanguageContext = createContext(null);
+
 function mapTranslations(keys, values) {
   return keys.reduce((accumulator, key, index) => {
     const source = baseTranslations[key];
