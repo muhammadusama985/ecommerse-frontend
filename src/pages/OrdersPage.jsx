@@ -12,10 +12,10 @@ import { pickLocalizedItems, translateOrderItems } from "../lib/contentTranslati
 const isDelivered = (order) =>
   order.orderStatus === "delivered" || order.shippingStatus === "delivered";
 
-// A return can be raised right up to the point Aramex hands the parcel over.
-// Once it shows as delivered the customer can no longer open a return here.
+// A return can only be raised once Aramex has actually delivered the parcel.
+// Until then the customer follows the shipment instead of returning it.
 const canRequestReturn = (order) => {
-  if (isDelivered(order) || order.orderStatus === "cancelled") {
+  if (!isDelivered(order) || order.orderStatus === "cancelled") {
     return false;
   }
 
@@ -65,17 +65,6 @@ function ShippingStatusCell({ order }) {
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState("");
 
-  if (!order.trackingNumber) {
-    return (
-      <>
-        <strong>Awaiting Aramex shipment</strong>
-        <p className="order-card__reason">
-          The Aramex tracking number is created automatically once your payment is confirmed.
-        </p>
-      </>
-    );
-  }
-
   const latestEvent = getLatestTrackingEvent(tracking);
 
   const handleTrack = async (event) => {
@@ -94,10 +83,14 @@ function ShippingStatusCell({ order }) {
 
   return (
     <>
-      <strong>{latestEvent?.UpdateDescription || latestEvent?.StatusDescription || order.shippingStatus}</strong>
+      {latestEvent?.UpdateDescription || latestEvent?.StatusDescription ? (
+        <strong>{latestEvent.UpdateDescription || latestEvent.StatusDescription}</strong>
+      ) : (
+        <strong>Awaiting Aramex shipment</strong>
+      )}
       {latestEvent ? <p>{formatTrackingMoment(latestEvent)}</p> : null}
       {latestEvent?.Location ? <p>{latestEvent.Location}</p> : null}
-      <p>Tracking: {order.trackingNumber}</p>
+      {order.trackingNumber ? <p>Tracking: {order.trackingNumber}</p> : null}
       <button
         type="button"
         className="ghost-button"
@@ -105,8 +98,13 @@ function ShippingStatusCell({ order }) {
         disabled={isChecking}
         aria-busy={isChecking}
       >
-        {isChecking ? "Checking Aramex..." : "Track Shipping"}
+        {isChecking ? "Checking Aramex..." : "Track the Shipment"}
       </button>
+      {!latestEvent && !order.trackingNumber ? (
+        <p className="order-card__reason">
+          The Aramex tracking number is created automatically once your payment is confirmed.
+        </p>
+      ) : null}
       {error ? <p className="order-card__reason">{error}</p> : null}
     </>
   );
@@ -544,12 +542,10 @@ function OrdersPage() {
               </div>
             </div>
 
-            {selectedOrder.trackingNumber ? (
-              <TrackingPanel
-                orderId={selectedOrder._id}
-                initialTracking={selectedOrder.shippingMeta?.tracking}
-              />
-            ) : null}
+            <TrackingPanel
+              orderId={selectedOrder._id}
+              initialTracking={selectedOrder.shippingMeta?.tracking}
+            />
 
             {/* Return Status Section */}
             {selectedOrder.returnStatus && selectedOrder.returnStatus !== "none" ? (
@@ -574,7 +570,7 @@ function OrdersPage() {
               canRequestReturn(selectedOrder) && (
                 <div className="order-detail__section order-detail__section--return-action">
                   <strong>Need to Return?</strong>
-                  <p>You can request a return until Aramex delivers your order. Tell us the reason and our team will review it.</p>
+                  <p>You can request a return once Aramex has delivered your order. Tell us the reason and our team will review it.</p>
                   <button
                     type="button"
                     className="solid-button solid-button--secondary"

@@ -1019,11 +1019,22 @@ textarea {
 }
 
 .admin-modal__close {
-  width: 38px;
+  /* The button is labelled with text (not a glyph), so it must be allowed to
+     size to its label instead of being locked to a 38px square, and it must not
+     be squeezed by a long order number in the flex header. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  align-self: flex-start;
   height: 38px;
+  padding: 0 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: #fff8fc;
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
 }
 
