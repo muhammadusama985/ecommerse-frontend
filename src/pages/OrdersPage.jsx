@@ -41,6 +41,77 @@ const getTrackingEvents = (tracking) => {
     : [];
 };
 
+const getLatestTrackingEvent = (tracking) => {
+  const events = tracking ? getTrackingEvents(tracking) : [];
+  return events.length ? events[events.length - 1] : null;
+};
+
+const formatTrackingMoment = (event) => {
+  if (!event) {
+    return "";
+  }
+  if (event.UpdateDateTime) {
+    return event.UpdateDateTime;
+  }
+  return [event.EventDate, event.EventTime].filter(Boolean).join(" ");
+};
+
+// Shows the status Aramex actually reports for the parcel instead of the
+// internal shippingStatus enum ("pending", "in_transit", ...), which tells the
+// customer nothing. Without an AWB there is genuinely nothing to query yet.
+function ShippingStatusCell({ order }) {
+  const { accessToken } = useShop();
+  const [tracking, setTracking] = useState(order.shippingMeta?.tracking || null);
+  const [isChecking, setIsChecking] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!order.trackingNumber) {
+    return (
+      <>
+        <strong>Awaiting Aramex shipment</strong>
+        <p className="order-card__reason">
+          The Aramex tracking number is created automatically once your payment is confirmed.
+        </p>
+      </>
+    );
+  }
+
+  const latestEvent = getLatestTrackingEvent(tracking);
+
+  const handleTrack = async (event) => {
+    event.stopPropagation();
+    setIsChecking(true);
+    setError("");
+    try {
+      const result = await trackOrderShipment(accessToken, order._id);
+      setTracking(result?.tracking || result);
+    } catch (trackError) {
+      setError(trackError.message || "Could not reach Aramex right now.");
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  return (
+    <>
+      <strong>{latestEvent?.UpdateDescription || latestEvent?.StatusDescription || order.shippingStatus}</strong>
+      {latestEvent ? <p>{formatTrackingMoment(latestEvent)}</p> : null}
+      {latestEvent?.Location ? <p>{latestEvent.Location}</p> : null}
+      <p>Tracking: {order.trackingNumber}</p>
+      <button
+        type="button"
+        className="ghost-button"
+        onClick={handleTrack}
+        disabled={isChecking}
+        aria-busy={isChecking}
+      >
+        {isChecking ? "Checking Aramex..." : "Track Shipping"}
+      </button>
+      {error ? <p className="order-card__reason">{error}</p> : null}
+    </>
+  );
+}
+
 function TrackingPanel({ orderId, initialTracking }) {
   const [tracking, setTracking] = useState(initialTracking || null);
   const [isLoading, setIsLoading] = useState(false);
@@ -368,8 +439,7 @@ function OrdersPage() {
                 </div>
                 <div>
                   <span>Shipping</span>
-                  <strong>{order.shippingStatus}</strong>
-                  {order.trackingNumber ? <p>Tracking: {order.trackingNumber}</p> : null}
+                  <ShippingStatusCell order={order} />
                 </div>
               </article>
             );
@@ -402,10 +472,9 @@ function OrdersPage() {
                 <p>{selectedOrder.paymentStatus}</p>
               </div>
               <div className="order-detail__card">
-                <span>Shipping</span>
-                <strong>{selectedOrder.shippingStatus}</strong>
-                {selectedOrder.trackingNumber ? <p>{selectedOrder.trackingNumber}</p> : null}
-                {selectedOrder.shipmentLabelUrl ? (
+<span>Shipping</span>
+                  <ShippingStatusCell order={selectedOrder} />
+                  {selectedOrder.shipmentLabelUrl ? (
                   <a href={selectedOrder.shipmentLabelUrl} target="_blank" rel="noopener noreferrer" className="order-detail__link">
                     Download Shipping Label
                   </a>

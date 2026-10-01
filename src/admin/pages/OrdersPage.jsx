@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getOrders, updateOrderReturnStatus, updateOrderStatus } from "../api/admin";
+import { getOrders, updateOrderReturnStatus } from "../api/admin";
 import { AdminLoading } from "../components/LoadingState";
 import { useAdmin } from "../context/AdminContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -15,7 +15,6 @@ function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusDraft, setStatusDraft] = useState("");
   const [returnDraft, setReturnDraft] = useState({ returnStatus: "approved", returnResolutionNote: "" });
   const [isLoading, setIsLoading] = useState(true);
   const [busyAction, setBusyAction] = useState("");
@@ -31,45 +30,10 @@ function OrdersPage() {
   const updateOrderInState = (updated) => {
     setOrders((current) => current.map((order) => (order._id === updated._id ? updated : order)));
     setSelectedOrder(updated);
-    setStatusDraft(updated.orderStatus);
     setReturnDraft({
       returnStatus: updated.returnStatus && updated.returnStatus !== "none" ? updated.returnStatus : "approved",
       returnResolutionNote: updated.returnResolutionNote || "",
     });
-  };
-
-  const handleStatusChange = async (orderId) => {
-    if (busyAction) return;
-
-    // Validate: Cannot skip directly to processing/shipped without confirming first
-    const currentStatus = orders.find(o => o._id === orderId)?.orderStatus;
-    if (statusDraft === "processing" && currentStatus === "placed") {
-      notify({ type: "error", message: "Please confirm the order before moving to processing." });
-      return;
-    }
-    if (statusDraft === "shipped" && !["confirmed", "processing"].includes(currentStatus)) {
-      notify({ type: "error", message: "Please confirm and process the order before shipping." });
-      return;
-    }
-
-    setBusyAction(`${orderId}:status`);
-    setIsSubmitting(true);
-    try {
-      const updated = await updateOrderStatus(accessToken, orderId, {
-        orderStatus: statusDraft,
-      });
-      updateOrderInState(updated);
-
-      notify({
-        type: "success",
-        message: t("orderUpdatedToStatus", { status: statusDraft }),
-      });
-    } catch (error) {
-      notify({ type: "error", message: error.message || t("orderUpdateError") });
-    } finally {
-      setIsSubmitting(false);
-      setBusyAction("");
-    }
   };
 
   const handleReturnUpdate = async (orderId) => {
@@ -137,7 +101,6 @@ function OrdersPage() {
                   className="admin-button admin-button--ghost"
                   onClick={() => {
                     setSelectedOrder(order);
-                    setStatusDraft(order.orderStatus);
                     setReturnDraft({
                       returnStatus: order.returnStatus && order.returnStatus !== "none" ? order.returnStatus : "approved",
                       returnResolutionNote: order.returnResolutionNote || "",
@@ -157,7 +120,6 @@ function OrdersPage() {
           className="admin-modal-backdrop"
           onClick={() => {
             setSelectedOrder(null);
-            setStatusDraft("");
           }}
         >
           <div className="admin-modal admin-modal--order" onClick={(event) => event.stopPropagation()}>
@@ -171,7 +133,6 @@ function OrdersPage() {
                 className="admin-modal__close"
                 onClick={() => {
                   setSelectedOrder(null);
-                  setStatusDraft("");
                   setReturnDraft({ returnStatus: "approved", returnResolutionNote: "" });
                 }}
               >
@@ -271,12 +232,8 @@ function OrdersPage() {
 
               <div className="admin-order-detail__actions">
                 <label>
-                  {t("updateStatus")}
-                  <select
-                    value={statusDraft}
-                    onChange={(event) => setStatusDraft(event.target.value)}
-                    disabled={isSubmitting}
-                  >
+                  {t("status")}
+                  <select value={selectedOrder.orderStatus} disabled>
                     {statusOptions.map((status) => (
                       <option key={status} value={status}>
                         {status}
@@ -284,16 +241,6 @@ function OrdersPage() {
                     ))}
                   </select>
                 </label>
-
-                <button
-                  type="button"
-                  className="admin-button admin-button--ghost"
-                  onClick={() => handleStatusChange(selectedOrder._id)}
-                  disabled={isSubmitting || statusDraft === selectedOrder.orderStatus || Boolean(busyAction)}
-                  aria-busy={busyAction === `${selectedOrder._id}:status`}
-                >
-                  {isSubmitting ? t("saving") : t("saveStatus")}
-                </button>
               </div>
 
               {/* Payment Status Update */}
