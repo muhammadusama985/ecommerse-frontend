@@ -1,11 +1,118 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { cancelOrder, getMyOrders, requestReturn } from "../api/orders";
+import { mediaUrl } from "../api/client";
+import { getMyOrders, requestReturn } from "../api/orders";
+import { trackOrderShipment } from "../api/shipping";
 import { LoadingState } from "../components/LoadingState";
 import { useLanguage } from "../context/LanguageContext";
 import { useNotifications } from "../context/NotificationContext";
 import { useShop } from "../context/ShopContext";
 import { pickLocalizedItems, translateOrderItems } from "../lib/contentTranslation";
+
+const isDelivered = (order) =>
+  order.orderStatus === "delivered" || order.shippingStatus === "delivered";
+
+// A return can be raised right up to the point Aramex hands the parcel over.
+// Once it shows as delivered the customer can no longer open a return here.
+const canRequestReturn = (order) => {
+  if (isDelivered(order) || order.orderStatus === "cancelled") {
+    return false;
+  }
+
+  return !order.returnStatus || order.returnStatus === "none" || order.returnStatus === "rejected";
+};
+
+const getTrackingEvents = (tracking) => {
+  const result = tracking?.TrackingResults?.[0];
+  if (Array.isArray(result?.Events) && result.Events.length) {
+    return result.Events;
+  }
+  if (Array.isArray(result?.Value)) {
+    return result.Value;
+  }
+  return result?.UpdateDescription
+    ? [
+        {
+          UpdateDescription: result.UpdateDescription,
+          UpdateDateTime: result.UpdateDateTime,
+          Location: result.Destination || result.Location,
+        },
+      ]
+    : [];
+};
+
+function TrackingPanel({ orderId, initialTracking }) {
+  const [tracking, setTracking] = useState(initialTracking || null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const { accessToken } = useShop();
+
+  const handleTrack = async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const result = await trackOrderShipment(accessToken, orderId);
+      setTracking(result?.tracking || result);
+    } catch (trackError) {
+      setError(trackError.message || "Could not retrieve Aramex tracking right now.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const events = tracking ? getTrackingEvents(tracking) : [];
+  const result = tracking?.TrackingResults?.[0];
+
+  return (
+    <div className="order-detail__section order-detail__section--tracking">
+      <strong>Aramex Tracking</strong>
+      <button
+        type="button"
+        className="solid-button solid-button--secondary"
+        onClick={handleTrack}
+        disabled={isLoading}
+        aria-busy={isLoading}
+      >
+        {isLoading ? "Checking Aramex..." : "Track Shipping"}
+      </button>
+
+      {error ? <p className="feedback-note">{error}</p> : null}
+
+      {result?.HasErrors ? (
+        <p className="feedback-note">
+          {result.Notifications?.[0]?.Message || "Aramex could not locate this shipment yet."}
+        </p>
+      ) : null}
+
+      {result && !result.HasErrors && !events.length ? (
+        <p className="order-card__reason">No tracking events have been recorded for this shipment yet.</p>
+      ) : null}
+
+      {events.length ? (
+        <div className="order-detail__items">
+          {events
+            .slice()
+            .reverse()
+            .map((event, index) => (
+              <article key={`${event.UpdateDateTime || event.EventDate || index}-${index}`} className="order-detail__item">
+                <div className="order-detail__copy">
+                  <strong>
+                    {event.UpdateDescription || event.StatusDescription || "Status update"}
+                  </strong>
+                  <p>
+                    {[event.UpdateDateTime, event.EventDate && `${event.EventDate} ${event.EventTime || ""}`.trim()]
+                      .filter(Boolean)
+                      .join(" - ") || "Date not provided"}
+                  </p>
+                  {event.Location ? <p>{event.Location}</p> : null}
+                </div>
+              </article>
+            ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function ReturnModal({ order, onClose, onSuccess }) {
   const { t } = useLanguage();
@@ -18,8 +125,7 @@ function ReturnModal({ order, onClose, onSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
 
-  const canRequestReturn = order.orderStatus === "delivered" && 
-    (!order.returnStatus || order.returnStatus === "none" || order.returnStatus === "rejected");
+  const canSubmitReturn = canRequestReturn(order);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -108,7 +214,7 @@ function ReturnModal({ order, onClose, onSuccess }) {
             <button type="button" className="ghost-button" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="solid-button" disabled={isSubmitting || !canRequestReturn}>
+            <button type="submit" className="solid-button" disabled={isSubmitting || !canSubmitReturn}>
               {isSubmitting ? "Submitting..." : "Submit Return Request"}
             </button>
           </div>
@@ -126,7 +232,6 @@ function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [localizedOrders, setLocalizedOrders] = useState([]);
   const [message, setMessage] = useState("");
-  const [busyOrderId, setBusyOrderId] = useState("");
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -189,42 +294,10 @@ function OrdersPage() {
 
   const visibleOrders = pickLocalizedItems(localizedOrders, orders);
 
-  const handleCancelOrder = async (event, orderId) => {
-    event.stopPropagation();
-
-    const accepted = window.confirm("Are you sure you want to cancel this order?");
-    if (!accepted) {
-      return;
-    }
-
-    setBusyOrderId(orderId);
-    try {
-      const updatedOrder = await cancelOrder(accessToken, orderId);
-      setOrders((current) => current.map((order) => (order._id === orderId ? updatedOrder : order)));
-      setSelectedOrder((current) => (current?._id === orderId ? updatedOrder : current));
-      notify({
-        type: "success",
-        message:
-          updatedOrder.paymentStatus === "refunded"
-            ? "Order cancelled. Your Stripe payment will be refunded automatically to your original payment method."
-            : "Order cancelled successfully.",
-      });
-    } catch (error) {
-      notify({ type: "error", message: error.message || "Could not cancel order." });
-    } finally {
-      setBusyOrderId("");
-    }
-  };
-
   const handleReturnSuccess = (updatedOrder) => {
     setOrders((current) => current.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)));
     setSelectedOrder(updatedOrder);
     setShowReturnModal(false);
-  };
-
-  const canRequestReturn = (order) => {
-    return order.orderStatus === "delivered" && 
-      (!order.returnStatus || order.returnStatus === "none" || order.returnStatus === "rejected");
   };
 
   if (!isAuthenticated) {
@@ -244,7 +317,7 @@ function OrdersPage() {
       <div className="content-page content-page--hero">
         <span className="section-eyebrow">{t("orders")}</span>
         <h1>{t("yourOrderHistory")}</h1>
-        <p>Track previously placed orders, cancel eligible orders, and open full order details.</p>
+        <p>Track your orders with live Aramex shipping updates, request a return, and open full order details.</p>
       </div>
 
       {message ? <p className="feedback-note">{message}</p> : null}
@@ -261,8 +334,6 @@ function OrdersPage() {
       ) : (
         <div className="orders-list orders-list--rich">
           {visibleOrders.map((order) => {
-            const canCancel = !["delivered", "cancelled"].includes(order.orderStatus);
-
             return (
               <article
                 key={order._id}
@@ -299,30 +370,6 @@ function OrdersPage() {
                   <span>Shipping</span>
                   <strong>{order.shippingStatus}</strong>
                   {order.trackingNumber ? <p>Tracking: {order.trackingNumber}</p> : null}
-                  {order.cancelledBy ? (
-                    <p className="order-card__reason">
-                      Cancelled by: {order.cancelledBy === "admin" ? "Admin" : "Customer"}
-                    </p>
-                  ) : null}
-                  {order.cancellationReason ? <p className="order-card__reason">Reason: {order.cancellationReason}</p> : null}
-                </div>
-                <div className="order-card__actions">
-                  <div className="cart-list__actions">
-                    <button
-                      type="button"
-                      className="ghost-button"
-                      onClick={(event) => handleCancelOrder(event, order._id)}
-                      disabled={!canCancel || busyOrderId === order._id}
-                    >
-                      {order.orderStatus === "cancelled"
-                        ? "Cancelled"
-                        : order.orderStatus === "delivered"
-                          ? "Delivered"
-                          : busyOrderId === order._id
-                            ? "Cancelling..."
-                            : "Cancel Order"}
-                    </button>
-                  </div>
                 </div>
               </article>
             );
@@ -428,6 +475,13 @@ function OrdersPage() {
               </div>
             </div>
 
+            {selectedOrder.trackingNumber ? (
+              <TrackingPanel
+                orderId={selectedOrder._id}
+                initialTracking={selectedOrder.shippingMeta?.tracking}
+              />
+            ) : null}
+
             {/* Return Status Section */}
             {selectedOrder.returnStatus && selectedOrder.returnStatus !== "none" ? (
               <div className="order-detail__section order-detail__section--return">
@@ -451,7 +505,7 @@ function OrdersPage() {
               canRequestReturn(selectedOrder) && (
                 <div className="order-detail__section order-detail__section--return-action">
                   <strong>Need to Return?</strong>
-                  <p>Returns can be requested once your order is delivered. Tell us the reason and our team will review it.</p>
+                  <p>You can request a return until Aramex delivers your order. Tell us the reason and our team will review it.</p>
                   <button
                     type="button"
                     className="solid-button solid-button--secondary"
@@ -469,25 +523,6 @@ function OrdersPage() {
                 <p className="order-card__reason">
                   This Stripe payment has been refunded automatically to the original payment method used for this order.
                 </p>
-              </div>
-            ) : null}
-
-            {selectedOrder.cancelledBy || selectedOrder.cancellationReason ? (
-              <div className="order-detail__section">
-                {selectedOrder.cancelledBy ? (
-                  <>
-                    <strong>Cancelled By</strong>
-                    <p className="order-card__reason">
-                      {selectedOrder.cancelledBy === "admin" ? "Admin" : "Customer"}
-                    </p>
-                  </>
-                ) : null}
-                {selectedOrder.cancellationReason ? (
-                  <>
-                    <strong>Cancellation Reason</strong>
-                    <p className="order-card__reason">{selectedOrder.cancellationReason}</p>
-                  </>
-                ) : null}
               </div>
             ) : null}
 

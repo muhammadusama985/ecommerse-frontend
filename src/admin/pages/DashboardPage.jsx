@@ -54,21 +54,6 @@ function DashboardPage() {
           <strong>AED {Number(data.stripeRevenue || 0).toFixed(2)}</strong>
           <small className="stat-card__meta">{t("revenueFromOnlinePayments")}</small>
         </article>
-        <article className="stat-card stat-card--danger">
-          <span>{t("cancelledOrders")}</span>
-          <strong>{data.cancelledOrdersCount || 0}</strong>
-          <small className="stat-card__meta">{t("totalCancelledOrders")}</small>
-        </article>
-        <article className="stat-card stat-card--danger">
-          <span>{t("cancelledByAdmin")}</span>
-          <strong>{data.cancelledByAdminCount || 0}</strong>
-          <small className="stat-card__meta">{t("cancelledFromAdminDashboard")}</small>
-        </article>
-        <article className="stat-card stat-card--danger">
-          <span>{t("cancelledByCustomer")}</span>
-          <strong>{data.cancelledByCustomerCount || 0}</strong>
-          <small className="stat-card__meta">{t("cancelledByCustomers")}</small>
-        </article>
         <article className="stat-card stat-card--warning">
           <span>{t("outOfStock")}</span>
           <strong>{data.outOfStockCount || 0}</strong>

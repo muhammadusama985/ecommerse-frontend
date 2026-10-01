@@ -9,4 +9,14 @@ async function getAramexRate(token, payload) {
   return response.data;
 }
 
-export { getAramexRate };
+async function trackOrderShipment(token, orderId) {
+  const response = await request(`/shipping/aramex/orders/${orderId}/tracking`, { token });
+  return response.data;
+}
+
+async function trackOrderReturnShipment(token, orderId) {
+  const response = await request(`/shipping/aramex/orders/${orderId}/return-tracking`, { token });
+  return response.data;
+}
+
+export { getAramexRate, trackOrderShipment, trackOrderReturnShipment };
