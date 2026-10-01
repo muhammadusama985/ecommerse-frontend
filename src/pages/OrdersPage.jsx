@@ -22,6 +22,81 @@ const canRequestReturn = (order) => {
   return !order.returnStatus || order.returnStatus === "none" || order.returnStatus === "rejected";
 };
 
+// Aramex returns WCF-style timestamps ("/Date(1790901780000+0200)/"). Parse both
+// that and plain ISO so the customer never sees the raw markup.
+const parseAramexDate = (value) => {
+  if (!value || typeof value !== "string") {
+    return null;
+  }
+
+  const wcf = value.match(/\/Date\((-?\d+)(?:[+-]\d{4})?\)\//);
+  const parsed = wcf ? new Date(Number(wcf[1])) : new Date(value);
+
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const ARAMEX_STATUS_LABELS = {
+  "record created": "Shipment booked with Aramex",
+  "shipment information received": "Shipment details received by Aramex",
+  "shipment picked up": "Picked up by Aramex",
+  "picked up": "Picked up by Aramex",
+  "out for delivery": "Out for delivery",
+  "attempted delivery": "Delivery attempted",
+  delivered: "Delivered",
+  returned: "Returned to sender",
+  cancelled: "Cancelled",
+  canceled: "Cancelled",
+  "in transit": "In transit",
+};
+
+// The backend publishes a readable line, but tracking saved before that change
+// still holds Aramex's terse wording, so fall back to the same map here.
+const readableAramexStatus = (event) => {
+  if (!event) {
+    return "";
+  }
+
+  if (event.DisplayDescription) {
+    return event.DisplayDescription;
+  }
+
+  const raw = (event.UpdateDescription || event.StatusDescription || "").trim();
+
+  if (!raw) {
+    return "";
+  }
+
+  // Aramex ends most statuses with a period ("Record created."), so the lookup
+  // key has to be stripped before it can match.
+  const key = raw.toLowerCase().replace(/\.+$/, "");
+
+  return ARAMEX_STATUS_LABELS[key] || key.charAt(0).toUpperCase() + key.slice(1);
+};
+
+const formatTrackingMoment = (event) => {
+  if (!event) {
+    return "";
+  }
+
+  const combined = [event.EventDate, event.EventTime].filter(Boolean).join("T");
+  const parsed =
+    parseAramexDate(event.UpdateDateTime) ||
+    parseAramexDate(combined) ||
+    parseAramexDate(event.EventDate);
+
+  if (parsed) {
+    return parsed.toLocaleString(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  return [event.UpdateDateTime, event.EventDate].filter(Boolean).join(" ");
+};
+
 const getTrackingEvents = (tracking) => {
   const result = tracking?.TrackingResults?.[0];
   if (Array.isArray(result?.Events) && result.Events.length) {
@@ -41,31 +116,36 @@ const getTrackingEvents = (tracking) => {
     : [];
 };
 
+// Aramex does not promise an ordering, so the newest scan is found by date
+// rather than by position.
 const getLatestTrackingEvent = (tracking) => {
   const events = tracking ? getTrackingEvents(tracking) : [];
-  return events.length ? events[events.length - 1] : null;
-};
+  if (!events.length) {
+    return null;
+  }
 
-const formatTrackingMoment = (event) => {
-  if (!event) {
-    return "";
-  }
-  if (event.UpdateDateTime) {
-    return event.UpdateDateTime;
-  }
-  return [event.EventDate, event.EventTime].filter(Boolean).join(" ");
+  return events
+    .slice()
+    .sort((a, b) => {
+      const aTime = parseAramexDate(a.UpdateDateTime)?.getTime() ?? 0;
+      const bTime = parseAramexDate(b.UpdateDateTime)?.getTime() ?? 0;
+      return bTime - aTime;
+    })[0];
 };
 
 // Shows the status Aramex actually reports for the parcel instead of the
 // internal shippingStatus enum ("pending", "in_transit", ...), which tells the
 // customer nothing. Without an AWB there is genuinely nothing to query yet.
-function ShippingStatusCell({ order }) {
+// The detail popup passes showAction={false} because its Aramex Tracking panel
+// already owns the single track button, so the two no longer sit together.
+function ShippingStatusCell({ order, showAction = true }) {
   const { accessToken } = useShop();
   const [tracking, setTracking] = useState(order.shippingMeta?.tracking || null);
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState("");
 
   const latestEvent = getLatestTrackingEvent(tracking);
+  const statusText = readableAramexStatus(latestEvent);
 
   const handleTrack = async (event) => {
     event.stopPropagation();
@@ -82,31 +162,35 @@ function ShippingStatusCell({ order }) {
   };
 
   return (
-    <>
-      {latestEvent?.UpdateDescription || latestEvent?.StatusDescription ? (
-        <strong>{latestEvent.UpdateDescription || latestEvent.StatusDescription}</strong>
-      ) : (
-        <strong>Awaiting Aramex shipment</strong>
-      )}
-      {latestEvent ? <p>{formatTrackingMoment(latestEvent)}</p> : null}
-      {latestEvent?.Location ? <p>{latestEvent.Location}</p> : null}
-      {order.trackingNumber ? <p>Tracking: {order.trackingNumber}</p> : null}
-      <button
-        type="button"
-        className="ghost-button"
-        onClick={handleTrack}
-        disabled={isChecking}
-        aria-busy={isChecking}
-      >
-        {isChecking ? "Checking Aramex..." : "Track the Shipment"}
-      </button>
-      {!latestEvent && !order.trackingNumber ? (
+    <div className="shipping-status">
+      <strong className="shipping-status__label">
+        {statusText || "Waiting for Aramex to book the shipment"}
+      </strong>
+      {latestEvent ? <p className="shipping-status__moment">{formatTrackingMoment(latestEvent)}</p> : null}
+      {latestEvent?.Location ? <p className="shipping-status__location">{latestEvent.Location}</p> : null}
+      {order.trackingNumber ? (
+        <p className="shipping-status__awb">
+          Tracking number <strong>{order.trackingNumber}</strong>
+        </p>
+      ) : null}
+      {showAction ? (
+        <button
+          type="button"
+          className="ghost-button shipping-status__action"
+          onClick={handleTrack}
+          disabled={isChecking}
+          aria-busy={isChecking}
+        >
+          {isChecking ? "Checking Aramex..." : "Track the Shipment"}
+        </button>
+      ) : null}
+      {showAction && !latestEvent && !order.trackingNumber ? (
         <p className="order-card__reason">
           The Aramex tracking number is created automatically once your payment is confirmed.
         </p>
       ) : null}
       {error ? <p className="order-card__reason">{error}</p> : null}
-    </>
+    </div>
   );
 }
 
@@ -134,16 +218,24 @@ function TrackingPanel({ orderId, initialTracking }) {
 
   return (
     <div className="order-detail__section order-detail__section--tracking">
-      <strong>Aramex Tracking</strong>
-      <button
-        type="button"
-        className="solid-button solid-button--secondary"
-        onClick={handleTrack}
-        disabled={isLoading}
-        aria-busy={isLoading}
-      >
-        {isLoading ? "Checking Aramex..." : "Track Shipping"}
-      </button>
+      <div className="tracking-panel__head">
+        <strong>Aramex Tracking</strong>
+        <button
+          type="button"
+          className="solid-button solid-button--secondary tracking-panel__action"
+          onClick={handleTrack}
+          disabled={isLoading}
+          aria-busy={isLoading}
+        >
+          {isLoading ? "Checking Aramex..." : "Track Shipment"}
+        </button>
+      </div>
+
+      {orderId && result && !result.HasErrors ? (
+        <p className="tracking-panel__awb">
+          Tracking number <strong>{result.ShipmentNumber || ""}</strong>
+        </p>
+      ) : null}
 
       {error ? <p className="feedback-note">{error}</p> : null}
 
@@ -161,18 +253,16 @@ function TrackingPanel({ orderId, initialTracking }) {
         <div className="order-detail__items">
           {events
             .slice()
-            .reverse()
+            .sort((a, b) => {
+              const aTime = parseAramexDate(a.UpdateDateTime)?.getTime() ?? 0;
+              const bTime = parseAramexDate(b.UpdateDateTime)?.getTime() ?? 0;
+              return bTime - aTime;
+            })
             .map((event, index) => (
               <article key={`${event.UpdateDateTime || event.EventDate || index}-${index}`} className="order-detail__item">
                 <div className="order-detail__copy">
-                  <strong>
-                    {event.UpdateDescription || event.StatusDescription || "Status update"}
-                  </strong>
-                  <p>
-                    {[event.UpdateDateTime, event.EventDate && `${event.EventDate} ${event.EventTime || ""}`.trim()]
-                      .filter(Boolean)
-                      .join(" - ") || "Date not provided"}
-                  </p>
+                  <strong>{readableAramexStatus(event) || "Status update"}</strong>
+                  <p>{formatTrackingMoment(event) || "Date not provided"}</p>
                   {event.Location ? <p>{event.Location}</p> : null}
                 </div>
               </article>
@@ -470,9 +560,9 @@ function OrdersPage() {
                 <p>{selectedOrder.paymentStatus}</p>
               </div>
               <div className="order-detail__card">
-<span>Shipping</span>
-                  <ShippingStatusCell order={selectedOrder} />
-                  {selectedOrder.shipmentLabelUrl ? (
+                <span>Shipping</span>
+                <ShippingStatusCell order={selectedOrder} showAction={false} />
+                {selectedOrder.shipmentLabelUrl ? (
                   <a href={selectedOrder.shipmentLabelUrl} target="_blank" rel="noopener noreferrer" className="order-detail__link">
                     Download Shipping Label
                   </a>
