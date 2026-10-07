@@ -1202,9 +1202,13 @@ main {
 
 .detail-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
   gap: 10px;
-  align-items: center;
+}
+
+.detail-actions .qty-picker {
+  align-self: center;
 }
 
 .detail-actions .solid-button,
