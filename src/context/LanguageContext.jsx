@@ -238,6 +238,7 @@ const baseTranslations = {
   securePayment: "Secure payment",
   qualityAssured: "Quality assured",
   description: "Description",
+  barcode: "Barcode",
   premiumProductFallback: "Premium beauty product details will be managed from the admin dashboard.",
   customerReviews: "Customer Reviews ({count})",
   noReviewsYet: "No reviews yet.",

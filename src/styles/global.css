@@ -1209,8 +1209,51 @@ main {
 
 .detail-actions .solid-button,
 .detail-actions .ghost-button {
-  padding: 5px 9px;
-  font-size: 0.88rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 138px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.detail-actions .ghost-button .button-icon.is-filled {
+  fill: currentColor;
+}
+
+.mini-spinner--on-solid {
+  border-color: rgba(255, 255, 255, 0.45);
+  border-top-color: #ffffff;
+}
+
+.detail-description {
+  margin: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(236, 75, 143, 0.16);
+  background: rgba(255, 251, 248, 0.72);
+}
+
+.detail-description p {
+  margin: 0;
+}
+
+.detail-description::-webkit-scrollbar {
+  width: 8px;
+}
+
+.detail-description::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.detail-description::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(236, 75, 143, 0.28);
 }
 
 .qty-picker {
@@ -1372,6 +1415,13 @@ main {
 
 .stock-note--danger {
   color: #bf425d;
+}
+
+.product-barcode {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.93rem;
+  font-weight: 500;
 }
 
 .checkout-layout,
@@ -1961,7 +2011,7 @@ main {
     order: 4;
   }
 
-  .detail-copy > p:not(.stock-note):not(.feedback-note) {
+  .detail-copy > p:not(.stock-note):not(.product-barcode):not(.feedback-note) {
     order: 5;
   }
 
@@ -1970,6 +2020,10 @@ main {
   }
 
   .detail-copy > .stock-note {
+    order: 7;
+  }
+
+  .detail-copy > .product-barcode {
     order: 7;
   }
 
@@ -3839,7 +3893,7 @@ html[dir="rtl"] .cart-list__actions > * + * {
     order: 4;
   }
 
-  .product-detail-band--hero .detail-copy > p:not(.stock-note):not(.feedback-note) {
+  .product-detail-band--hero .detail-copy > p:not(.stock-note):not(.product-barcode):not(.feedback-note) {
     order: 5;
   }
 
@@ -3848,6 +3902,10 @@ html[dir="rtl"] .cart-list__actions > * + * {
   }
 
   .product-detail-band--hero .detail-copy > .stock-note {
+    order: 7;
+  }
+
+  .product-detail-band--hero .detail-copy > .product-barcode {
     order: 7;
   }
 

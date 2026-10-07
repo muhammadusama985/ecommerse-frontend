@@ -7,6 +7,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { useAdminNotifications } from "../context/AdminNotificationContext";
 
 const initialForm = {
+  barcode: "",
   name: "",
   categoryId: "",
   shortDescription: "",
@@ -117,11 +118,24 @@ function ProductsPage() {
     setIsSubmitting(true);
 
     try {
+      const barcode = form.barcode.trim();
+      const barcodeInUse = products.some(
+        (item) =>
+          item.barcode &&
+          item.barcode.trim().toLowerCase() === barcode.toLowerCase() &&
+          item._id !== editingProductId,
+      );
+      if (barcodeInUse) {
+        notify({ type: "error", message: t("barcodeAlreadyInUse") });
+        return;
+      }
+
       const uploadedImages = selectedImages.length
         ? await Promise.all(selectedImages.map((file) => uploadAdminImage(accessToken, "products", file).then((uploaded) => uploaded.path)))
         : [];
 
       const payload = {
+        barcode,
         name: form.name,
         categoryId: form.categoryId,
         shortDescription: form.shortDescription,
@@ -205,6 +219,7 @@ function ProductsPage() {
                   onClick={() => {
                     setEditingProductId(product._id);
                     setForm({
+                      barcode: product.barcode || "",
                       name: product.name || "",
                       categoryId: product.categoryId?._id || product.categoryId || "",
                       shortDescription: product.shortDescription || "",
@@ -277,6 +292,16 @@ function ProductsPage() {
                   </select>
                 </label>
               </div>
+
+              <label>
+                {t("barcode")}
+                <input
+                  value={form.barcode}
+                  onChange={(event) => setForm({ ...form, barcode: event.target.value })}
+                  placeholder={t("barcodePlaceholder")}
+                  required
+                />
+              </label>
 
               <label>
                 {t("shortDescription")}

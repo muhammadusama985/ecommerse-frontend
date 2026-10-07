@@ -5,6 +5,7 @@ import { addCartItem } from "../api/cart";
 import { createReview, getProductDetail, listProducts } from "../api/products";
 import { addWishlistItem, removeWishlistItem } from "../api/users";
 import { ErrorState } from "../components/ErrorState";
+import { Icon } from "../components/Icon";
 import { LoadingState } from "../components/LoadingState";
 import { ProductCard } from "../components/ProductCard";
 import { useLanguage } from "../context/LanguageContext";
@@ -25,6 +26,10 @@ function ProductDetailPage() {
   const [message, setMessage] = useState("");
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "", title: "" });
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [relatedLoading, setRelatedLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -45,12 +50,14 @@ function ProductDetailPage() {
 
   useEffect(() => {
     if (!data?.product?.categoryId?._id) return;
+    setRelatedLoading(true);
     listProducts({ categoryId: data.product.categoryId._id, sortBy: "bestSelling" })
       .then(async (products) => {
         const translatedProducts = await translateProductCollection(language, products);
         setRelatedProducts(translatedProducts.filter((item) => item._id !== data.product._id).slice(0, 4));
       })
-      .catch(() => setRelatedProducts([]));
+      .catch(() => setRelatedProducts([]))
+      .finally(() => setRelatedLoading(false));
   }, [data?.product?._id, data?.product?.categoryId?._id, language]);
 
   useEffect(() => {
@@ -83,6 +90,7 @@ function ProductDetailPage() {
     }
 
     try {
+      setIsAddingToCart(true);
       const cart = await addCartItem(accessToken, { productId: product._id, quantity });
       setCart(cart);
       setMessage(t("addedToCartSuccess"));
@@ -90,6 +98,8 @@ function ProductDetailPage() {
     } catch (error) {
       setMessage(error.message);
       notify({ type: "error", message: error.message || t("couldNotAddToCart") });
+    } finally {
+      setIsAddingToCart(false);
     }
   };
 
@@ -100,6 +110,7 @@ function ProductDetailPage() {
     }
 
     try {
+      setIsTogglingWishlist(true);
       const nextWishlist = isWishlisted
         ? await removeWishlistItem(accessToken, product._id)
         : await addWishlistItem(accessToken, product._id);
@@ -109,12 +120,15 @@ function ProductDetailPage() {
     } catch (error) {
       setMessage(error.message);
       notify({ type: "error", message: error.message || t("couldNotUpdateWishlist") });
+    } finally {
+      setIsTogglingWishlist(false);
     }
   };
 
   const handleReviewSubmit = async (event) => {
     event.preventDefault();
     try {
+      setIsSubmittingReview(true);
       await createReview(accessToken, {
         productId: product._id,
         rating: Number(reviewForm.rating),
@@ -129,6 +143,8 @@ function ProductDetailPage() {
     } catch (error) {
       setMessage(error.message);
       notify({ type: "error", message: error.message || t("couldNotSubmitReview") });
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -177,7 +193,11 @@ function ProductDetailPage() {
               <p className={`stock-note ${isOutOfStock ? "stock-note--danger" : ""}`}>
                 {isOutOfStock ? t("outOfStockLabel") : t("availableCount", { count: stockCount })}
               </p>
-              <p>{product.description || product.shortDescription}</p>
+              {product.barcode ? (
+                <p className="product-barcode">
+                  {t("barcode")}: {product.barcode}
+                </p>
+              ) : null}
               <div className="detail-actions">
                 <div className="qty-picker">
                   <button type="button" onClick={() => setQuantity((current) => Math.max(1, current - 1))}>
@@ -192,10 +212,26 @@ function ProductDetailPage() {
                     +
                   </button>
                 </div>
-                <button type="button" className="solid-button" onClick={handleAddToCart} disabled={isOutOfStock}>
+                <button
+                  type="button"
+                  className="solid-button solid-button--with-icon"
+                  onClick={handleAddToCart}
+                  disabled={isOutOfStock || isAddingToCart}
+                >
+                  {isAddingToCart ? <span className="mini-spinner mini-spinner--on-solid" /> : <Icon name="cart" className="button-icon" />}
                   {isOutOfStock ? t("outOfStockCta") : t("addToCart")}
                 </button>
-                <button type="button" className="ghost-button" onClick={handleWishlist}>
+                <button
+                  type="button"
+                  className="ghost-button ghost-button--with-icon"
+                  onClick={handleWishlist}
+                  disabled={isTogglingWishlist}
+                >
+                  {isTogglingWishlist ? (
+                    <span className="mini-spinner" />
+                  ) : (
+                    <Icon name="heart" className={`button-icon ${isWishlisted ? "is-filled" : ""}`} />
+                  )}
                   {isWishlisted ? t("saved") : t("wishlistAction")}
                 </button>
               </div>
@@ -215,7 +251,9 @@ function ProductDetailPage() {
           <section className="detail-tabs">
             <div className="tab-card">
               <h2>{t("description")}</h2>
-              <p>{product.description || t("premiumProductFallback")}</p>
+              <div className="detail-description">
+                <p>{product.description || t("premiumProductFallback")}</p>
+              </div>
             </div>
             <div className="tab-card">
               <h2>{t("reviewsCountHeading", { count: reviews.length })}</h2>
@@ -258,7 +296,12 @@ function ProductDetailPage() {
                     value={reviewForm.comment}
                     onChange={(event) => setReviewForm({ ...reviewForm, comment: event.target.value })}
                   />
-                  <button type="submit" className="solid-button">
+                  <button type="submit" className="solid-button solid-button--with-icon" disabled={isSubmittingReview}>
+                    {isSubmittingReview ? (
+                      <span className="mini-spinner mini-spinner--on-solid" />
+                    ) : (
+                      <Icon name="star" className="button-icon" />
+                    )}
                     {t("submitReview")}
                   </button>
                 </form>
@@ -276,9 +319,13 @@ function ProductDetailPage() {
               <h2>{t("youMayAlsoLike")}</h2>
             </div>
             <div className="product-grid">
-              {relatedProducts.map((item) => (
-                <ProductCard key={item._id} product={item} compact />
-              ))}
+              {relatedLoading ? (
+                <LoadingState compact label={t("loadingGeneric")} />
+              ) : relatedProducts.length ? (
+                relatedProducts.map((item) => (
+                  <ProductCard key={item._id} product={item} compact />
+                ))
+              ) : null}
             </div>
           </section>
         </div>
